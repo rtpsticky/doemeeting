@@ -1,0 +1,227 @@
+// กำหนด Database Provider
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// กำหนด Generator
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ====================================================================
+// ENUMS
+// ====================================================================
+
+// Item 1: สถานะ
+enum MeetingStatus {
+  ATTENDEE  // ผู้เข้าร่วมประชุม
+  ORGANIZER // ผู้จัดประชุม
+}
+
+// ====================================================================
+// LOOKUP TABLES (MASTER DATA)
+// ใช้สำหรับรายการที่มีตัวเลือกตายตัว และจะถูก Populate ข้อมูลล่วงหน้า
+// ====================================================================
+
+// Item 6: OrganizerLookup (หน่วยงานผู้จัดประชุม)
+model OrganizerLookup {
+  id      Int      @id @default(autoincrement())
+  name    String   @unique @db.VarChar(255) // e.g., 'กองระบาดวิทยา', 'สำนักปลัดกระทรวงสาธารณสุข'
+  meetings MeetingReport[] // ความสัมพันธ์ One-to-Many
+}
+
+// Item 8: ObjectiveLookup (วัตถุประสงค์การประชุม)
+model ObjectiveLookup {
+  id      Int                 @id @default(autoincrement())
+  name    String              @unique // e.g., 'ชี้แจง', 'แลกเปลี่ยนข้อมูล'
+  meetings MeetingObjective[]
+}
+
+// Item 13: AreaLookup (Tag Area: เขตสุขภาพ)
+model AreaLookup {
+  id      Int      @id @default(autoincrement())
+  name    String   @unique // e.g., 'เขตสุขภาพที่ 1', 'ไม่เฉพาะเจาะจง'
+  meetings TagArea[]
+}
+
+// Item 14: ScopeLookup (Tag Scope: ขอบเขตงาน)
+model ScopeLookup {
+  id      Int      @id @default(autoincrement())
+  name    String   @unique // e.g., 'กฎหมาย ระเบียบ', 'การเฝ้าระวังโรคและภัยสุขภาพ'
+  meetings TagScope[]
+}
+
+// Item 15: DiseaseGroupLookup (Tag Disease Group: กลุ่มโรค)
+model DiseaseGroupLookup {
+  id      Int      @id @default(autoincrement())
+  name    String   @unique // e.g., 'โรคติดต่ออันตราย', 'โรคไม่ติดต่อ'
+  meetings TagDiseaseGroup[]
+}
+
+// Item 16: DiseaseLookup (Tag Disease: โรคเฉพาะ - วิ่งตาม MEBS)
+model DiseaseLookup {
+  id      Int      @id @default(autoincrement())
+  name    String   @unique // ชื่อโรค
+  meetings TagDisease[]
+}
+
+
+// ====================================================================
+// MAIN MODEL: MeetingReport (รายงานการประชุม)
+// ====================================================================
+model MeetingReport {
+  id                      Int      @id @default(autoincrement())
+
+  // 1. สถานะ & 2. ชื่อ & 3. รูปแบบ
+  status                  MeetingStatus @default(ATTENDEE)
+  title                   String   @db.VarChar(255)
+  format                  String   @db.VarChar(100)
+
+  // 4. วันที่เริ่ม & 5. วันที่สิ้นสุด
+  startDate               DateTime @db.Date
+  endDate                 DateTime @db.Date
+
+  // 6. ผู้จัดประชุม (One-to-Many Relation)
+  organizerId             Int
+  organizer               OrganizerLookup @relation(fields: [organizerId], references: [id])
+
+  // 7. ผู้จัดประชุมอื่นๆ
+  otherOrganizer          String?  @db.VarChar(255)
+
+  // 8. วัตถุประสงค์ (Many-to-Many Relation)
+  objectives              MeetingObjective[]
+
+  // 9. สรุป & 10-12. ไฟล์แนบ
+  summary                 String   @db.Text
+  summaryFileUrl          String?  @db.VarChar(512) // URL แนบไฟล์สรุปประชุม
+  imageUrl1               String?  @db.VarChar(512) // URL แนบรูปประชุม 1
+  imageUrl2               String?  @db.VarChar(512) // URL แนบรูปประชุม 2
+
+  // 13. Tag Area (Many-to-Many Relation)
+  tagsArea                TagArea[]
+
+  // 14. Tag Scope (Many-to-Many Relation)
+  tagsScope               TagScope[]
+  otherScope              String?  @db.VarChar(255) // Tag Scope: อื่นๆ โปรดระบุ
+
+  // 15. Tag Disease Group (Many-to-Many Relation)
+  tagsDiseaseGroup        TagDiseaseGroup[]
+  otherDiseaseGroup       String?  @db.VarChar(255) // Tag Disease Group: อื่นๆ โปรดระบุ
+
+  // 16. Tag Disease (Many-to-Many Relation)
+  tagsDisease             TagDisease[]
+
+  // Audit Fields
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  @@index([startDate])
+  @@index([organizerId])
+}
+
+
+// ====================================================================
+// RELATION TABLES (MANY-TO-MANY JOINS)
+// ใช้สำหรับเชื่อมโยง MeetingReport กับ Lookup Tables ต่างๆ
+// ====================================================================
+
+// 8. วัตถุประสงค์การประชุม
+model MeetingObjective {
+  meetingId   Int
+  objectiveId Int
+  meeting     MeetingReport   @relation(fields: [meetingId], references: [id])
+  objective   ObjectiveLookup @relation(fields: [objectiveId], references: [id])
+  @@id([meetingId, objectiveId])
+}
+
+// 13. Tag Area
+model TagArea {
+  meetingId Int
+  areaId Int
+  meeting MeetingReport @relation(fields: [meetingId], references: [id])
+  area    AreaLookup    @relation(fields: [areaId], references: [id])
+  @@id([meetingId, areaId])
+}
+
+// 14. Tag Scope
+model TagScope {
+  meetingId Int
+  scopeId Int
+  meeting MeetingReport @relation(fields: [meetingId], references: [id])
+  scope   ScopeLookup   @relation(fields: [scopeId], references: [id])
+  @@id([meetingId, scopeId])
+}
+
+// 15. Tag Disease Group
+model TagDiseaseGroup {
+  meetingId Int
+  groupId Int
+  meeting MeetingReport @relation(fields: [meetingId], references: [id])
+  group   DiseaseGroupLookup @relation(fields: [groupId], references: [id])
+  @@id([meetingId, groupId])
+}
+
+// 16. Tag Disease
+model TagDisease {
+  meetingId Int
+  diseaseId Int
+  meeting MeetingReport @relation(fields: [meetingId], references: [id])
+  disease DiseaseLookup @relation(fields: [diseaseId], references: [id])
+  @@id([meetingId, diseaseId])
+}
+
+model User {
+  id            String    @id @default(cuid())
+
+  // เพิ่ม field 'username' และกำหนดให้เป็น Unique (ใช้ในการ Login)
+  username      String?   @unique
+
+  // email ไม่จำเป็นต้อง Unique อีกต่อไป หากเราใช้ username เป็นหลัก
+  email         String?
+
+  password      String?    // รหัสผ่านที่ถูก Hash แล้ว (เป็น String?)
+
+  emailVerified DateTime?
+  image         String?
+  role          Role      @default(ADMIN)
+
+  accounts      Account[]
+  sessions      Session[]
+
+  // เพิ่ม Unique Index สำหรับ email หากต้องการให้มีการค้นหาด้วย email ได้รวดเร็ว
+  @@index([email])
+}
+
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum Role {
+  ADMIN // ผู้ดูแลระบบ (จัดการข้อมูล)
+  USER  // ถ้ามีการกำหนดสิทธิ์อื่นๆ ในอนาคต
+}
