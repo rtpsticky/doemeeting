@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import MeetingForm from "@/components/MeetingForm";
 import { getLookups } from "@/lib/lookups";
+import { meetingUserSelect } from "@/lib/meetingPeople";
 
 export default async function EditMeetingPage({ params }) {
   const resolvedParams = await params;
@@ -21,6 +22,8 @@ export default async function EditMeetingPage({ params }) {
         tagsScope: { select: { scopeId: true } },
         tagsDiseaseGroup: { select: { groupId: true } },
         tagsDisease: { select: { diseaseId: true } },
+        createdBy: { select: meetingUserSelect },
+        summarizer: { select: meetingUserSelect },
       },
     }),
     getLookups(),
@@ -30,8 +33,15 @@ export default async function EditMeetingPage({ params }) {
     notFound();
   }
 
-  const { organizers, objectives, areas, scopes, diseaseGroups, diseases } =
-    lookups;
+  const {
+    organizers,
+    objectives,
+    areas,
+    scopes,
+    diseaseGroups,
+    diseases,
+    users,
+  } = lookups;
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -60,6 +70,7 @@ export default async function EditMeetingPage({ params }) {
             scopes={scopes}
             diseaseGroups={diseaseGroups}
             diseases={diseases}
+            users={users}
           />
         </div>
       </main>

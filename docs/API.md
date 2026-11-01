@@ -317,8 +317,15 @@ API อนุญาตเฉพาะ origin ที่อยู่ในค่�
 | `imageUrl2` | string | ✔ | path รูปประกอบ 2 |
 | `otherScope` | string (≤255) | ✔ | ขอบเขตงานอื่นๆ (ใช้คู่กับ scope "อื่นๆ โปรดระบุ") |
 | `otherDiseaseGroup` | string (≤255) | ✔ | กลุ่มโรคอื่นๆ (ใช้คู่กับกลุ่มโรค "อื่นๆ โปรดระบุ") |
+| `summarizerId` | string | ✔ | รหัสผู้ใช้ที่เป็นผู้สรุปการประชุม (เมื่อเลือกจากผู้ใช้ในระบบ) |
+| `summarizer` | UserRef | ✔ | `{ id, name, username, department }` ของผู้สรุป (มีใน GET list/detail) |
+| `summarizerName` | string (≤255) | ✔ | ชื่อผู้สรุปที่พิมพ์เอง (เมื่อผู้สรุปไม่ใช่ผู้ใช้ในระบบ) มีค่าอย่างใดอย่างหนึ่งกับ `summarizerId` |
+| `createdById` | string | ✔ | รหัสผู้ใช้ที่ทำรายการ (กำหนดจากผู้ที่ login ตอนสร้าง แก้ไขไม่ได้ รายงานเก่าเป็น `null`) |
+| `createdBy` | UserRef | ✔ | `{ id, name, username, department }` ของผู้ทำรายการ (มีใน GET list/detail) |
 | `createdAt` | string | | วันที่สร้าง |
 | `updatedAt` | string | | วันที่แก้ไขล่าสุด |
+
+ชื่อที่ใช้แสดง: ผู้ทำรายการ = `createdBy.name ?? createdBy.username` / ผู้สรุป = `summarizer.name ?? summarizer.username ?? summarizerName`
 
 `GET /meetings/{id}` มี field เพิ่ม: `objectives`, `areas`, `scopes`, `diseaseGroups`, `diseases` (array ของ Lookup)
 
@@ -335,6 +342,7 @@ Lookup ทุกตัวมีโครงสร้าง `{ "id": number, "nam
 | `areas` (เขตสุขภาพ) | `areaIds` | เขตสุขภาพที่ 1 – 13, ไม่เฉพาะเจาะจง |
 | `scopes` (ขอบเขตงาน) | `scopeIds` | กฎหมาย ระเบียบ, งบประมาณ, การเฝ้าระวังโรคและภัยสุขภาพ, …, อื่นๆ โปรดระบุ |
 | `diseaseGroups` (กลุ่มโรค) | `diseaseGroupIds` | โรคติดต่ออันตราย/โรคอุบัติใหม่/Disease X, โรคไม่ติดต่อ, …, อื่นๆ โปรดระบุ |
+| `users` (ผู้ใช้ที่อนุมัติแล้ว) | `summarizerId` | `{ id, name, department }` โดย `id` เป็น string และ `name` เป็นชื่อ-นามสกุล (ถ้าไม่มีใช้ username) เรียงตามชื่อ |
 | `diseases` (โรคเฉพาะ อ้างอิง MEBS) | `diseaseIds` | กาฬโรค, โรคไข้เลือดออก, … (ประมาณ 120 รายการ ควรใช้ dropdown ที่ค้นหาได้) |
 
 > `id` ของ lookup เป็น auto-increment ในฐานข้อมูล **ห้าม hardcode** ให้ดึงจาก `GET /lookups` เสมอ ส่วนตัวเลือก "อื่นๆ" ให้เช็คจาก `name` ที่ขึ้นต้นด้วย `อื่นๆ` แล้วแสดง input ที่คู่กัน:
@@ -407,6 +415,11 @@ GET /meetings?page=1&pageSize=20&search=&organizerId=
       "imageUrl2": null,
       "otherScope": null,
       "otherDiseaseGroup": null,
+      "summarizerId": "clx2abc...",
+      "summarizer": { "id": "clx2abc...", "name": "สมหญิง ใจดี", "username": "somying", "department": "กองระบาดวิทยา" },
+      "summarizerName": null,
+      "createdById": "clx1xyz...",
+      "createdBy": { "id": "clx1xyz...", "name": "สมชาย ใจดี", "username": "somchai", "department": "กองระบาดวิทยา" },
       "createdAt": "2026-11-01T03:12:45.123Z",
       "updatedAt": "2026-11-01T03:12:45.123Z"
     }
@@ -446,6 +459,11 @@ GET /meetings/{id}
     "imageUrl2": null,
     "otherScope": null,
     "otherDiseaseGroup": null,
+    "summarizerId": null,
+    "summarizer": null,
+    "summarizerName": "นพ.ผู้เชี่ยวชาญ ภายนอก",
+    "createdById": "clx1xyz...",
+    "createdBy": { "id": "clx1xyz...", "name": "สมชาย ใจดี", "username": "somchai", "department": "กองระบาดวิทยา" },
     "objectives":    [{ "id": 1, "name": "ชี้แจง" }],
     "areas":         [{ "id": 2, "name": "เขตสุขภาพที่ 1" }],
     "scopes":        [{ "id": 4, "name": "การเฝ้าระวังโรคและภัยสุขภาพ" }],
@@ -478,6 +496,8 @@ Content-Type: multipart/form-data
 | `organizerId` | integer | ✔ | |
 | `otherOrganizer` | string | เมื่อเลือกผู้จัด "อื่นๆ โปรดระบุ" | ชื่อหน่วยงานผู้จัด (กรณีอื่นๆ) หรือหน่วยงานผู้จัดร่วม |
 | `summary` | string | ✔ | |
+| `summarizerId` | string | ✔ อย่างใดอย่างหนึ่ง | ผู้สรุปที่เป็นผู้ใช้ในระบบ (`id` จาก `GET /lookups` → `users`) ถ้าส่งมา `summarizerName` จะถูกละเลย |
+| `summarizerName` | string (≤255) | ✔ อย่างใดอย่างหนึ่ง | ชื่อผู้สรุปที่พิมพ์เอง |
 | `objectiveIds` | integer (ส่งซ้ำได้) | ✔ อย่างน้อย 1 | |
 | `otherObjective` | string | เมื่อเลือกวัตถุประสงค์ "อื่นๆ" | ถ้าไม่ได้เลือก "อื่นๆ" ค่านี้จะถูกบันทึกเป็น `null` |
 | `areaIds` | integer (ส่งซ้ำได้) | | |
@@ -490,6 +510,7 @@ Content-Type: multipart/form-data
 | `image1` | File | | `.jpg`, `.png`, `.webp` ไม่เกิน 10MB |
 | `image2` | File | | `.jpg`, `.png`, `.webp` ไม่เกิน 10MB |
 
+- **ไม่ต้องส่งผู้ทำรายการ** API บันทึก `createdById` จากผู้ที่ login อยู่เอง
 - ถ้าเลือกได้หลายค่า (`*Ids`) ให้ `append` key เดิมซ้ำทีละค่า **ห้าม**ส่งเป็น JSON array หรือคั่นด้วย comma
 - field ข้อความ `other*` ที่ว่างหรือมีแต่ช่องว่างจะถูกบันทึกเป็น `null`
 - ห้ามตั้ง `Content-Type` เอง ให้ browser ใส่ boundary ให้
@@ -503,6 +524,7 @@ fd.append("startDate", "2026-10-15");
 fd.append("endDate", "2026-10-15");
 fd.append("organizerId", "1");
 fd.append("summary", "สรุปประเด็นสำคัญ ...");
+fd.append("summarizerId", "clx2abc..."); // หรือ fd.append("summarizerName", "ชื่อที่พิมพ์เอง")
 [1, 3].forEach((id) => fd.append("objectiveIds", id));
 [2, 5].forEach((id) => fd.append("areaIds", id));
 fd.append("diseaseIds", "22");
@@ -524,6 +546,7 @@ const { data } = await api("/meetings", { method: "POST", formData: fd });
 | 400 | `กรุณาเลือกวัตถุประสงค์การประชุมอย่างน้อยหนึ่งข้อ` |
 | 400 | `ไม่พบหน่วยงานผู้จัดที่เลือก` / `พบวัตถุประสงค์การประชุมที่ไม่ถูกต้อง` |
 | 400 | `กรุณาระบุหน่วยงานผู้จัด (อื่นๆ)` / `กรุณาระบุวัตถุประสงค์การประชุม (อื่นๆ)` |
+| 400 | `กรุณาระบุผู้สรุปการประชุม` / `ไม่พบผู้ใช้ที่เลือกเป็นผู้สรุปการประชุม` / `ชื่อผู้สรุปการประชุมต้องไม่เกิน 255 ตัวอักษร` |
 | 400 | `ไฟล์ xxx มีขนาดใหญ่เกิน 10MB` / `ไฟล์ xxx ไม่ใช่ประเภทไฟล์ที่อนุญาต` |
 | 401 | `ไม่อนุญาต` |
 | 500 | `เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์` (เช่น ส่ง `organizerId` หรือ `*Ids` ที่ไม่มีอยู่จริง) |
@@ -540,6 +563,7 @@ Content-Type: multipart/form-data
 - field เหมือน `POST /meetings` **ยกเว้นไฟล์** (`summaryFile`, `image1`, `image2` ถูกละเลย ไฟล์เดิมยังอยู่)
 - เป็น **full replace** ต้องส่งทุก field ให้ครบ รวมถึง `*Ids` ทั้งหมดที่ต้องการให้คงอยู่ (relation ที่ไม่ได้ส่งจะถูกลบ)
 - `otherOrganizer`, `otherObjective`, `otherScope`, `otherDiseaseGroup` ที่ไม่ได้ส่งจะกลายเป็น `null`
+- ต้องส่ง `summarizerId` หรือ `summarizerName` ทุกครั้ง (รายงานเก่าที่ยังไม่มีผู้สรุปต้องระบุตอนแก้ไข) ส่วน `createdById` เปลี่ยนไม่ได้
 
 **Response 200**: `{ "message": "อัปเดตรายงานสำเร็จ", "data": MeetingReport }`
 
@@ -856,7 +880,7 @@ DELETE /users/{id}
    npx prisma db push
    ```
 
-   คำสั่งนี้เพิ่มคอลัมน์ `name`, `department`, `status`, `approvedAt`, `approvedById`, `createdAt`, `updatedAt` ในตาราง `User` ผู้ใช้เดิมจะได้ `status = APPROVED` และ role เดิมไม่เปลี่ยน และเพิ่มคอลัมน์ `otherObjective` ในตาราง `MeetingReport`
+   คำสั่งนี้เพิ่มคอลัมน์ `name`, `department`, `status`, `approvedAt`, `approvedById`, `createdAt`, `updatedAt` ในตาราง `User` ผู้ใช้เดิมจะได้ `status = APPROVED` และ role เดิมไม่เปลี่ยน และเพิ่มคอลัมน์ `otherObjective`, `summarizerId`, `summarizerName`, `createdById` ในตาราง `MeetingReport` (รายงานเดิมจะเป็น `null`)
 
    จากนั้นรัน seed เพื่อเพิ่มตัวเลือกหน่วยงานผู้จัด "อื่นๆ โปรดระบุ" (seed ใช้ upsert ไม่กระทบข้อมูลเดิม):
 

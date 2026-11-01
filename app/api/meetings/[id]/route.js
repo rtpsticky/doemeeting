@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
-import { cleanText, validateOrganizerAndObjectives } from "@/lib/lookups";
+import {
+  cleanText,
+  validateOrganizerAndObjectives,
+  validateSummarizer,
+} from "@/lib/lookups";
+import { meetingUserSelect } from "@/lib/meetingPeople";
 
 // รายละเอียดรายงาน โดยแปลง relation เป็น array ของ { id, name }
 export async function GET(request, { params }) {
@@ -19,6 +24,8 @@ export async function GET(request, { params }) {
       where: { id },
       include: {
         organizer: true,
+        createdBy: { select: meetingUserSelect },
+        summarizer: { select: meetingUserSelect },
         objectives: { include: { objective: true } },
         tagsArea: { include: { area: true } },
         tagsScope: { include: { scope: true } },
@@ -144,6 +151,14 @@ export async function PUT(request, { params }) {
       return NextResponse.json({ message: otherError }, { status: 400 });
     }
 
+    const { error: summarizerError, ...summarizer } = await validateSummarizer({
+      summarizerId: cleanText(formData.get("summarizerId")),
+      summarizerName: cleanText(formData.get("summarizerName")),
+    });
+    if (summarizerError) {
+      return NextResponse.json({ message: summarizerError }, { status: 400 });
+    }
+
     // --- Update Database in a Transaction ---
     const updatedMeeting = await prisma.$transaction(async (tx) => {
       // 1. Update the scalar fields of the meeting report
@@ -161,6 +176,7 @@ export async function PUT(request, { params }) {
           summary,
           otherScope,
           otherDiseaseGroup,
+          ...summarizer,
         },
       });
 

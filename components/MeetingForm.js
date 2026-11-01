@@ -3,8 +3,18 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Select from "react-select";
+import CreatableSelect from "react-select/creatable";
 import Swal from "sweetalert2";
 import { isOtherOption } from "@/lib/otherOption";
+import { userDisplayName } from "@/lib/meetingPeople";
+
+const selectStyles = {
+  control: (base) => ({
+    ...base,
+    borderColor: "rgb(203 213 225)",
+    "&:hover": { borderColor: "rgb(14 165 233)" },
+  }),
+};
 
 // Reusable form components (no changes)
 const FormInput = ({ id, name, label, required, ...props }) => (
@@ -60,6 +70,8 @@ export default function MeetingForm({
   scopes,
   diseaseGroups,
   diseases,
+  users = [],
+  currentUser = null, // ผู้ใช้ที่ login อยู่ (ใช้ในโหมดสร้าง)
 }) {
   const router = useRouter();
   const isEditMode = meeting !== null;
@@ -110,11 +122,53 @@ export default function MeetingForm({
     );
   };
 
+  // ผู้ทำรายการ: โหมดแก้ไขใช้ผู้สร้างเดิม โหมดสร้างใช้ผู้ใช้ที่ login อยู่ (ไม่ส่งไป API ฝั่ง server กำหนดเอง)
+  const recorderName = isEditMode
+    ? userDisplayName(meeting.createdBy) || "-"
+    : userDisplayName(currentUser) || "-";
+
+  // ผู้สรุปการประชุม: เลือกจากผู้ใช้ในระบบ ({ value: userId }) หรือพิมพ์ชื่อเอง ({ __isNew__: true })
+  const userOptions = users.map((u) => ({
+    value: u.id,
+    label: u.department ? `${u.name} (${u.department})` : u.name,
+  }));
+  const [summarizer, setSummarizer] = useState(() => {
+    if (isEditMode) {
+      if (meeting.summarizerId) {
+        return (
+          userOptions.find((opt) => opt.value === meeting.summarizerId) ?? {
+            // ผู้ใช้ที่ถูกระงับแล้วจะไม่อยู่ในรายการ แต่ยังคงค่าเดิมไว้ได้
+            value: meeting.summarizerId,
+            label: userDisplayName(meeting.summarizer) || "-",
+          }
+        );
+      }
+      return meeting.summarizerName
+        ? {
+            value: meeting.summarizerName,
+            label: meeting.summarizerName,
+            __isNew__: true,
+          }
+        : null;
+    }
+    return userOptions.find((opt) => opt.value === currentUser?.id) ?? null;
+  });
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     setIsLoading(true);
 
     const formData = new FormData(event.target);
+
+    if (!summarizer) {
+      setIsLoading(false);
+      Swal.fire({
+        title: "เกิดข้อผิดพลาด!",
+        text: "กรุณาระบุผู้สรุปการประชุม",
+        icon: "error",
+      });
+      return;
+    }
 
     // For simplicity, file re-uploads are not handled in edit mode.
     if (isEditMode) {
@@ -355,6 +409,43 @@ export default function MeetingForm({
       {/* --- Summary --- */}
       <div className="space-y-4 border-b border-slate-200 pb-8">
         <h2 className="text-lg font-semibold text-slate-800">สรุปการประชุม</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <FormInput
+            id="recorder"
+            label="ผู้ทำรายการ"
+            type="text"
+            value={recorderName}
+            disabled
+          />
+          <div>
+            <label
+              htmlFor="summarizer-select"
+              className="block text-sm font-medium text-slate-700"
+            >
+              ผู้สรุปการประชุม <span className="text-red-500">*</span>
+            </label>
+            <CreatableSelect
+              instanceId="summarizer-select"
+              inputId="summarizer-select"
+              isClearable
+              options={userOptions}
+              className="mt-1"
+              placeholder="เลือกผู้ใช้ หรือพิมพ์ชื่อ..."
+              formatCreateLabel={(input) => `ใช้ชื่อ "${input}"`}
+              noOptionsMessage={() => "พิมพ์ชื่อผู้สรุปได้เลย"}
+              onChange={setSummarizer}
+              value={summarizer}
+              styles={selectStyles}
+            />
+            {summarizer && (
+              <input
+                type="hidden"
+                name={summarizer.__isNew__ ? "summarizerName" : "summarizerId"}
+                value={summarizer.value}
+              />
+            )}
+          </div>
+        </div>
         <FormTextarea
           id="summary"
           name="summary"
@@ -489,13 +580,7 @@ export default function MeetingForm({
           placeholder="ค้นหาและเลือกโรค..."
           onChange={setSelectedDiseases}
           value={selectedDiseases}
-          styles={{
-            control: (base) => ({
-              ...base,
-              borderColor: "rgb(203 213 225)",
-              "&:hover": { borderColor: "rgb(14 165 233)" },
-            }),
-          }}
+          styles={selectStyles}
         />
         {selectedDiseases &&
           selectedDiseases.map((disease) => (

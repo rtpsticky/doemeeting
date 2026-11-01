@@ -3,6 +3,11 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import DeleteMeetingButton from "@/components/DeleteMeetingButton";
 import { isOtherOption, organizerDisplayName } from "@/lib/otherOption";
+import {
+  meetingUserSelect,
+  summarizerDisplayName,
+  userDisplayName,
+} from "@/lib/meetingPeople";
 
 // Helper component for displaying a detail item
 const DetailItem = ({ label, value }) => {
@@ -59,6 +64,8 @@ export default async function MeetingDetailsPage({ params }) {
     where: { id },
     include: {
       organizer: true,
+      createdBy: { select: meetingUserSelect },
+      summarizer: { select: meetingUserSelect },
       objectives: { include: { objective: true } },
       tagsArea: { include: { area: true } },
       tagsScope: { include: { scope: true } },
@@ -128,6 +135,15 @@ export default async function MeetingDetailsPage({ params }) {
                 value={meeting.otherOrganizer}
               />
             )}
+
+            <DetailItem
+              label="ผู้สรุปการประชุม"
+              value={summarizerDisplayName(meeting)}
+            />
+            <DetailItem
+              label="ผู้ทำรายการ"
+              value={userDisplayName(meeting.createdBy)}
+            />
 
             <div className="md:col-span-2">
               <dt className="text-sm font-medium text-slate-500">

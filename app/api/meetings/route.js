@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
-import { cleanText, validateOrganizerAndObjectives } from "@/lib/lookups";
+import {
+  cleanText,
+  validateOrganizerAndObjectives,
+  validateSummarizer,
+} from "@/lib/lookups";
+import { meetingUserSelect } from "@/lib/meetingPeople";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 
@@ -67,7 +72,11 @@ export async function GET(request) {
     const [meetings, total] = await Promise.all([
       prisma.meetingReport.findMany({
         where,
-        include: { organizer: true },
+        include: {
+          organizer: true,
+          createdBy: { select: meetingUserSelect },
+          summarizer: { select: meetingUserSelect },
+        },
         orderBy: { startDate: "desc" },
         skip: (page - 1) * pageSize,
         take: pageSize,
@@ -94,7 +103,7 @@ export async function GET(request) {
 }
 
 export async function POST(request) {
-  const { error: authError } = await requireUser(request);
+  const { user, error: authError } = await requireUser(request);
   if (authError) return authError;
 
   try {
@@ -173,6 +182,14 @@ export async function POST(request) {
       return NextResponse.json({ message: otherError }, { status: 400 });
     }
 
+    const { error: summarizerError, ...summarizer } = await validateSummarizer({
+      summarizerId: cleanText(formData.get("summarizerId")),
+      summarizerName: cleanText(formData.get("summarizerName")),
+    });
+    if (summarizerError) {
+      return NextResponse.json({ message: summarizerError }, { status: 400 });
+    }
+
     // --- Process Files ---
     const summaryFile = formData.get("summaryFile");
     const image1 = formData.get("image1");
@@ -211,6 +228,8 @@ export async function POST(request) {
         imageUrl2,
         otherScope,
         otherDiseaseGroup,
+        ...summarizer,
+        createdById: user.id,
         objectives: {
           create: objectiveIds.map((objectiveId) => ({
             objective: { connect: { id: objectiveId } },

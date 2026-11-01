@@ -1,10 +1,14 @@
 import { getLookups } from "@/lib/lookups";
 import MeetingForm from "@/components/MeetingForm";
 import Link from "next/link";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 
 export default async function NewMeetingPage() {
-  const { organizers, objectives, areas, scopes, diseaseGroups, diseases } =
-    await getLookups();
+  const [
+    { organizers, objectives, areas, scopes, diseaseGroups, diseases, users },
+    session,
+  ] = await Promise.all([getLookups(), getServerSession(authOptions)]);
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -32,6 +36,8 @@ export default async function NewMeetingPage() {
             scopes={scopes}
             diseaseGroups={diseaseGroups}
             diseases={diseases}
+            users={users}
+            currentUser={session?.user}
           />
         </div>
       </main>

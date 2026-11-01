@@ -113,12 +113,22 @@ model MeetingReport {
   // 16. Tag Disease (Many-to-Many Relation)
   tagsDisease             TagDisease[]
 
+  // ผู้สรุปการประชุม: เลือกจากผู้ใช้ในระบบ (summarizerId) หรือพิมพ์ชื่อเอง (summarizerName) อย่างใดอย่างหนึ่ง
+  summarizerId            String?
+  summarizer              User?    @relation("MeetingSummarizer", fields: [summarizerId], references: [id], onDelete: SetNull)
+  summarizerName          String?  @db.VarChar(255)
+
   // Audit Fields
+  // ผู้ทำรายการ (ผู้ใช้ที่ login ตอนสร้างรายงาน) รายงานเก่าก่อนมีฟิลด์นี้จะเป็น null
+  createdById             String?
+  createdBy               User?    @relation("MeetingCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
 
   @@index([startDate])
   @@index([organizerId])
+  @@index([createdById])
+  @@index([summarizerId])
 }
 
 
@@ -202,6 +212,9 @@ model User {
 
   accounts      Account[]
   sessions      Session[]
+
+  meetingsCreated    MeetingReport[] @relation("MeetingCreatedBy")
+  meetingsSummarized MeetingReport[] @relation("MeetingSummarizer")
 
   // เพิ่ม Unique Index สำหรับ email หากต้องการให้มีการค้นหาด้วย email ได้รวดเร็ว
   @@index([email])
