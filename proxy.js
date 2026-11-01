@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 // CORS สำหรับ front-end ที่อยู่คนละโดเมน (เช่น Cloudflare Pages)
 // กำหนด origin ที่อนุญาตใน env CORS_ALLOWED_ORIGINS คั่นด้วย comma รองรับ wildcard subdomain
 // เช่น CORS_ALLOWED_ORIGINS="https://doemeeting.pages.dev,https://*.doemeeting.pages.dev,http://localhost:5173"
+// ตั้งเป็น "*" เพื่ออนุญาตทุก origin (ใช้ระหว่างพัฒนา)
 // ไม่ได้เปิด Allow-Credentials เพราะ front-end แยกใช้ Authorization: Bearer แทน cookie
 
 const ALLOWED_METHODS = "GET, POST, PUT, PATCH, DELETE, OPTIONS";
@@ -13,7 +14,7 @@ const allowedOrigins = (process.env.CORS_ALLOWED_ORIGINS || "")
   .map((origin) => origin.trim().replace(/\/$/, ""))
   .filter(Boolean)
   .map((origin) => {
-    if (!origin.includes("*")) return origin;
+    if (origin === "*" || !origin.includes("*")) return origin;
     const pattern = origin
       .split("*")
       .map((part) => part.replace(/[.+?^${}()|[\]\\]/g, "\\$&"))
@@ -21,7 +22,10 @@ const allowedOrigins = (process.env.CORS_ALLOWED_ORIGINS || "")
     return new RegExp(`^${pattern}$`, "i");
   });
 
+const allowAllOrigins = allowedOrigins.includes("*");
+
 function isAllowedOrigin(origin) {
+  if (allowAllOrigins) return true;
   return allowedOrigins.some((allowed) =>
     typeof allowed === "string" ? allowed === origin : allowed.test(origin),
   );

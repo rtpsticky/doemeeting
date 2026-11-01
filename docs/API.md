@@ -213,6 +213,7 @@ API อนุญาตเฉพาะ origin ที่อยู่ในค่�
 | Custom domain (ถ้ามี) | `https://meeting.example.go.th` |
 | พัฒนาในเครื่อง | `http://localhost:5173` |
 
+- ระหว่างพัฒนาตั้ง `CORS_ALLOWED_ORIGINS=*` เพื่ออนุญาตทุก origin ได้ แต่ก่อนขึ้นใช้งานจริงควรเปลี่ยนเป็นรายการโดเมนจริง
 - origin ต้องตรงทั้ง scheme, host และ port ไม่มี `/` ท้าย
 - header ที่ส่งได้: `Content-Type`, `Authorization`
 - method ที่ใช้ได้: `GET, POST, PUT, PATCH, DELETE, OPTIONS`
@@ -801,6 +802,8 @@ DELETE /users/{id}
    NEXTAUTH_SECRET=...               # ค่าเดิม ห้ามเปลี่ยน (ใช้เข้ารหัส token)
    NEXTAUTH_URL=https://epid-odpc2.ddc.moph.go.th/doemeeting/api/auth
    CORS_ALLOWED_ORIGINS=https://doemeeting.pages.dev,https://*.doemeeting.pages.dev,http://localhost:5173
+   # ระหว่างพัฒนา front-end อนุญาตทุก origin ได้ด้วย
+   # CORS_ALLOWED_ORIGINS=*
    ```
 
    `NEXTAUTH_URL` ต้องขึ้นต้นด้วย `https://` และมี `/doemeeting/api/auth` ตามที่แอปตั้ง basePath ไว้ (ตอนนี้ไฟล์ `.env` ในเครื่องพัฒนาตั้งเป็น `http://localhost:3000`)
