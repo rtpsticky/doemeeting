@@ -61,12 +61,19 @@ Auth: `-` ไม่ต้อง login · `🔑` ต้อง login · `👑` ต
 
 ### 2.1 Environment variable ฝั่ง front-end
 
-ตั้งค่าใน Cloudflare Pages (Settings → Environment variables) และ `.env.local` ตอนพัฒนา (ตัวอย่างนี้ใช้ Vite):
+ตัวอย่างนี้ใช้ Vite แยกค่าตามช่วงงาน:
 
-```
+```bash
+# .env.development  (พัฒนาบน localhost ผ่าน dev proxy ดูข้อ 2.3)
+VITE_API_BASE_URL=/doemeeting/api
+VITE_FILE_BASE_URL=/doemeeting
+
+# .env.production  (build ไป deploy บน Cloudflare Pages)
 VITE_API_BASE_URL=https://epid-odpc2.ddc.moph.go.th/doemeeting/api
 VITE_FILE_BASE_URL=https://epid-odpc2.ddc.moph.go.th/doemeeting
 ```
+
+ค่าของ production ตั้งใน Cloudflare Pages (Settings → Environment variables) แทนไฟล์ `.env.production` ก็ได้
 
 ### 2.2 ตัวอย่าง API client
 
@@ -88,7 +95,7 @@ export class ApiError extends Error {
 }
 
 export async function api(path, { method = "GET", json, formData, query } = {}) {
-  const url = new URL(API_BASE + path);
+  const url = new URL(API_BASE + path, window.location.origin); // รองรับทั้ง URL เต็มและ path relative
   if (query) {
     Object.entries(query).forEach(([k, v]) => {
       if (v !== undefined && v !== null && v !== "") url.searchParams.set(k, v);
@@ -126,6 +133,46 @@ setToken(data.accessToken);
 const { data: meetings, pagination } = await api("/meetings", { query: { page: 1, search: "ไข้เลือดออก" } });
 const { data: lookups } = await api("/lookups");
 ```
+
+### 2.3 พัฒนาบน localhost (dev proxy)
+
+ช่วงพัฒนาบนเครื่องให้ใช้ proxy ของ dev server ส่งต่อ `/doemeeting/*` ไปยัง API จริง browser จะมองว่าเรียกโดเมนเดียวกัน จึง**ไม่ต้องตั้ง CORS บน server** และเปิดไฟล์แนบผ่าน proxy ได้ด้วย
+
+**Vite**
+
+```js
+// vite.config.js
+import { defineConfig } from "vite";
+
+export default defineConfig({
+  server: {
+    proxy: {
+      "/doemeeting": {
+        target: "https://epid-odpc2.ddc.moph.go.th",
+        changeOrigin: true,
+      },
+    },
+  },
+});
+```
+
+**Next.js** (กรณี front-end ใช้ Next)
+
+```js
+// next.config.mjs
+export default {
+  async rewrites() {
+    return [
+      {
+        source: "/doemeeting/:path*",
+        destination: "https://epid-odpc2.ddc.moph.go.th/doemeeting/:path*",
+      },
+    ];
+  },
+};
+```
+
+> proxy ของ dev server ใช้ได้เฉพาะตอน `npm run dev` เท่านั้น เมื่อ build ไป deploy บน Cloudflare Pages แล้ว front-end จะเรียก API ตรงด้วย URL เต็ม จึงต้องตั้ง CORS บน server ให้โดเมน Pages (ดู [หัวข้อ 4](#4-cors-และโดเมนของ-front-end))
 
 ---
 
