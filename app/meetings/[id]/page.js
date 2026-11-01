@@ -155,6 +155,15 @@ export default async function MeetingDetailsPage({ params }) {
             </div>
 
             <div className="md:col-span-2">
+              <dt className="text-sm font-medium text-slate-500">
+                สิ่งที่ต้องดำเนินการ
+              </dt>
+              <dd className="mt-1 text-base text-slate-900 whitespace-pre-wrap">
+                {meeting.actionItems || "-"}
+              </dd>
+            </div>
+
+            <div className="md:col-span-2">
               <dt className="text-sm font-medium text-slate-500">ไฟล์แนบ</dt>
               <dd className="mt-2 flex flex-col space-y-2">
                 <FileLink url={meeting.summaryFileUrl} label="ไฟล์สรุปประชุม" />
@@ -185,13 +194,20 @@ export default async function MeetingDetailsPage({ params }) {
                 </p>
               )}
             </div>
-            <TagList
-              label="Tag Area (เขตสุขภาพ)"
-              items={meeting.tagsArea}
-              renderItem={(item) => (
-                <Tag key={item.area.id}>{item.area.name}</Tag>
+            <div className="md:col-span-2">
+              <TagList
+                label="พื้นที่ (Area)"
+                items={meeting.tagsArea}
+                renderItem={(item) => (
+                  <Tag key={item.area.id}>{item.area.name}</Tag>
+                )}
+              />
+              {meeting.otherArea && (
+                <p className="mt-2 text-sm text-slate-600">
+                  อื่นๆ: {meeting.otherArea}
+                </p>
               )}
-            />
+            </div>
 
             <div className="md:col-span-2">
               <TagList

@@ -88,6 +88,8 @@ export async function PUT(request, { params }) {
     const organizerId = parseInt(formData.get("organizerId"), 10);
     const otherOrganizer = cleanText(formData.get("otherOrganizer"));
     const summary = formData.get("summary");
+    const actionItems = cleanText(formData.get("actionItems"));
+    const otherArea = cleanText(formData.get("otherArea"));
     const otherScope = cleanText(formData.get("otherScope"));
     const otherDiseaseGroup = cleanText(formData.get("otherDiseaseGroup"));
 
@@ -109,6 +111,7 @@ export async function PUT(request, { params }) {
       !endDate ||
       !organizerId ||
       !summary ||
+      !actionItems ||
       !status ||
       !["ATTENDEE", "ORGANIZER"].includes(status) ||
       !format ||
@@ -174,6 +177,8 @@ export async function PUT(request, { params }) {
           otherOrganizer,
           otherObjective,
           summary,
+          actionItems,
+          otherArea,
           otherScope,
           otherDiseaseGroup,
           ...summarizer,

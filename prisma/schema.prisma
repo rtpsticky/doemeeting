@@ -35,6 +35,7 @@ model OrganizerLookup {
 model ObjectiveLookup {
   id      Int                 @id @default(autoincrement())
   name    String              @unique // e.g., 'ชี้แจง', 'แลกเปลี่ยนข้อมูล'
+  sortOrder Int      @default(0) // ลำดับที่แสดงในฟอร์ม (กำหนดใน seed)
   meetings MeetingObjective[]
 }
 
@@ -42,6 +43,7 @@ model ObjectiveLookup {
 model AreaLookup {
   id      Int      @id @default(autoincrement())
   name    String   @unique // e.g., 'เขตสุขภาพที่ 1', 'ไม่เฉพาะเจาะจง'
+  sortOrder Int      @default(0) // ลำดับที่แสดงในฟอร์ม (กำหนดใน seed)
   meetings TagArea[]
 }
 
@@ -49,6 +51,7 @@ model AreaLookup {
 model ScopeLookup {
   id      Int      @id @default(autoincrement())
   name    String   @unique // e.g., 'กฎหมาย ระเบียบ', 'การเฝ้าระวังโรคและภัยสุขภาพ'
+  sortOrder Int      @default(0) // ลำดับที่แสดงในฟอร์ม (กำหนดใน seed)
   meetings TagScope[]
 }
 
@@ -56,6 +59,7 @@ model ScopeLookup {
 model DiseaseGroupLookup {
   id      Int      @id @default(autoincrement())
   name    String   @unique // e.g., 'โรคติดต่ออันตราย', 'โรคไม่ติดต่อ'
+  sortOrder Int      @default(0) // ลำดับที่แสดงในฟอร์ม (กำหนดใน seed)
   meetings TagDiseaseGroup[]
 }
 
@@ -95,12 +99,14 @@ model MeetingReport {
 
   // 9. สรุป & 10-12. ไฟล์แนบ
   summary                 String   @db.Text
+  actionItems             String   @default("") @db.Text // สิ่งที่ต้องดำเนินการ (API บังคับกรอก)
   summaryFileUrl          String?  @db.VarChar(512) // URL แนบไฟล์สรุปประชุม
   imageUrl1               String?  @db.VarChar(512) // URL แนบรูปประชุม 1
   imageUrl2               String?  @db.VarChar(512) // URL แนบรูปประชุม 2
 
-  // 13. Tag Area (Many-to-Many Relation)
+  // 13. Tag Area / พื้นที่ (Many-to-Many Relation)
   tagsArea                TagArea[]
+  otherArea               String?  @db.VarChar(255) // Tag Area: อื่นๆ โปรดระบุ
 
   // 14. Tag Scope (Many-to-Many Relation)
   tagsScope               TagScope[]

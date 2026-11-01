@@ -454,13 +454,19 @@ export default function MeetingForm({
           required
           defaultValue={meeting?.summary}
         />
+        <FormTextarea
+          id="actionItems"
+          name="actionItems"
+          label="สิ่งที่ต้องดำเนินการ"
+          rows="4"
+          required
+          defaultValue={meeting?.actionItems}
+        />
       </div>
 
       {/* --- Tags --- */}
       <div className="space-y-4 border-b border-slate-200 pb-8">
-        <h2 className="text-lg font-semibold text-slate-800">
-          Tag Area (เขตสุขภาพ)
-        </h2>
+        <h2 className="text-lg font-semibold text-slate-800">พื้นที่ (Area)</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 pt-2">
           {areas.map((area) => (
             <div key={area.id} className="relative flex items-start">
@@ -488,6 +494,14 @@ export default function MeetingForm({
             </div>
           ))}
         </div>
+        <FormInput
+          id="otherArea"
+          name="otherArea"
+          label="พื้นที่ (อื่นๆ โปรดระบุ)"
+          type="text"
+          maxLength={255}
+          defaultValue={meeting?.otherArea}
+        />
       </div>
       <div className="space-y-4 border-b border-slate-200 pb-8">
         <h2 className="text-lg font-semibold text-slate-800">

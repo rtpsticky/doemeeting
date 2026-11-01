@@ -15,119 +15,175 @@ async function seedOrganizers() {
   console.log("Finished seeding organizer lookups.");
 }
 
-async function seedObjectives() {
-  console.log("Start seeding objective lookups...");
-  const objectives = [
-    "ชี้แจง",
-    "รายงานความคืบหน้า",
-    "แลกเปลี่ยนข้อมูล",
-    "หารือ/ตัดสินใจ",
-    "พัฒนาศักยภาพ",
-    "พัฒนานวัตกรรมหรือสร้างแรงบันดาลใจ",
-    "อื่นๆ",
-  ];
-  for (const item of objectives) {
-    await prisma.objectiveLookup.upsert({
-      where: { name: item },
-      update: {},
-      create: { name: item },
+// ซิงก์ตัวเลือกให้ตรงกับรายการใน seed (ใช้กับ lookup ที่ seed เป็นผู้กำหนดรายการทั้งหมด)
+// 1. เปลี่ยนชื่อจาก renames ({ ชื่อเดิม: ชื่อใหม่ }) โดยคง id เดิม รายงานที่ผูกอยู่จึงไม่หาย
+// 2. upsert ทุกรายการพร้อม sortOrder ตามลำดับใน items
+// 3. ลบตัวเลือกที่ไม่อยู่ใน items พร้อมการผูกกับรายงาน (เฉพาะ tag ไม่ลบตัวรายงาน)
+async function syncLookup({
+  label,
+  model,
+  joinModel,
+  joinKey,
+  items,
+  renames = {},
+}) {
+  console.log(`Start syncing ${label} lookups...`);
+
+  for (const [from, to] of Object.entries(renames)) {
+    const old = await model.findUnique({ where: { name: from } });
+    if (!old) continue;
+    const existing = await model.findUnique({ where: { name: to } });
+    if (existing) {
+      // มีชื่อใหม่อยู่แล้ว: ย้าย tag ที่ยังไม่ซ้ำไปตัวใหม่ แล้วลบตัวเดิม
+      const links = await joinModel.findMany({ where: { [joinKey]: old.id } });
+      for (const link of links) {
+        await joinModel.upsert({
+          where: {
+            [`meetingId_${joinKey}`]: {
+              meetingId: link.meetingId,
+              [joinKey]: existing.id,
+            },
+          },
+          update: {},
+          create: { meetingId: link.meetingId, [joinKey]: existing.id },
+        });
+      }
+      await joinModel.deleteMany({ where: { [joinKey]: old.id } });
+      await model.delete({ where: { id: old.id } });
+    } else {
+      await model.update({ where: { id: old.id }, data: { name: to } });
+    }
+  }
+
+  for (const [index, name] of items.entries()) {
+    await model.upsert({
+      where: { name },
+      update: { sortOrder: index + 1 },
+      create: { name, sortOrder: index + 1 },
     });
   }
-  console.log("Finished seeding objective lookups.");
+
+  const removed = await model.findMany({
+    where: { name: { notIn: items } },
+    select: { id: true, name: true },
+  });
+  if (removed.length > 0) {
+    const ids = removed.map((item) => item.id);
+    await joinModel.deleteMany({ where: { [joinKey]: { in: ids } } });
+    await model.deleteMany({ where: { id: { in: ids } } });
+    console.log(
+      `Removed ${label}: ${removed.map((item) => item.name).join(", ")}`,
+    );
+  }
+
+  console.log(`Finished syncing ${label} lookups.`);
+}
+
+async function seedObjectives() {
+  await syncLookup({
+    label: "objective",
+    model: prisma.objectiveLookup,
+    joinModel: prisma.meetingObjective,
+    joinKey: "objectiveId",
+    renames: { แลกเปลี่ยนข้อมูล: "แลกเปลี่ยนข้อมูล/ประสบการณ์" },
+    items: [
+      "ชี้แจง",
+      "แลกเปลี่ยนข้อมูล/ประสบการณ์",
+      "รายงานความคืบหน้า",
+      "หารือ/ตัดสินใจ",
+      "พัฒนาศักยภาพ",
+      "พัฒนานวัตกรรมหรือสร้างแรงบันดาลใจ",
+      "จัดทำคู่มือ/แนวทาง/แผน",
+      "อื่นๆ",
+    ],
+  });
 }
 
 async function seedAreas() {
-  console.log("Start seeding area lookups...");
-  const areas = [
-    "ไม่เฉพาะเจาะจง",
-    "เขตสุขภาพที่ 1",
-    "เขตสุขภาพที่ 2",
-    "เขตสุขภาพที่ 3",
-    "เขตสุขภาพที่ 4",
-    "เขตสุขภาพที่ 5",
-    "เขตสุขภาพที่ 6",
-    "เขตสุขภาพที่ 7",
-    "เขตสุขภาพที่ 8",
-    "เขตสุขภาพที่ 9",
-    "เขตสุขภาพที่ 10",
-    "เขตสุขภาพที่ 11",
-    "เขตสุขภาพที่ 12",
-    "เขตสุขภาพที่ 13",
-  ];
-  for (const item of areas) {
-    await prisma.areaLookup.upsert({
-      where: { name: item },
-      update: {},
-      create: { name: item },
-    });
-  }
-  console.log("Finished seeding area lookups.");
+  await syncLookup({
+    label: "area",
+    model: prisma.areaLookup,
+    joinModel: prisma.tagArea,
+    joinKey: "areaId",
+    renames: { ไม่เฉพาะเจาะจง: "ไม่เฉพาะเจาะจง / ทั่วประเทศ" },
+    items: [
+      ...Array.from({ length: 13 }, (_, i) => `เขตสุขภาพที่ ${i + 1}`),
+      "ไม่เฉพาะเจาะจง / ทั่วประเทศ",
+      "ต่างประเทศ",
+      "อื่นๆ โปรดระบุ",
+    ],
+  });
 }
 
 async function seedScopes() {
-  console.log("Start seeding scope lookups...");
-  const scopes = [
-    "ไม่เฉพาะเจาะจง",
-    "กฎหมาย ระเบียบ",
-    "งบประมาณ",
-    "การเฝ้าระวังโรคและภัยสุขภาพ",
-    "การตรวจตัวอย่างทางห้องปฏิบัติการ",
-    "การสื่อสารความเสี่ยงและพัฒนาการมีส่วนร่วมของชุมชน",
-    "การป้องกันการติดเชื้อในสถานพยาบาล",
-    "การปฏิบัติการ สอบสวน มาตรการควบคุมโรค",
-    "การรักษา",
-    "การจัดการและตอบโต้ภาวะฉุกเฉิน",
-    "การสร้างและพัฒนาแผน",
-    "ชายแดน",
-    "เรือนจำ",
-    "โรงเรียน",
-    "เขตเมือง",
-    "วัด",
-    "ค่ายทหาร",
-    "สถานพยาบาล",
-    "นักท่องเที่ยว",
-    "ด่านควบคุมโรค",
-    "ประชากรต่างด้าว",
-    "อื่นๆ โปรดระบุ",
-  ];
-  for (const item of scopes) {
-    await prisma.scopeLookup.upsert({
-      where: { name: item },
-      update: {},
-      create: { name: item },
-    });
-  }
-  console.log("Finished seeding scope lookups.");
+  await syncLookup({
+    label: "scope",
+    model: prisma.scopeLookup,
+    joinModel: prisma.tagScope,
+    joinKey: "scopeId",
+    renames: {
+      "การปฏิบัติการ สอบสวน มาตรการควบคุมโรค": "การสอบสวน มาตรการควบคุมโรค",
+      ชายแดน: "ชายแดน/ประชากรต่างด้าว",
+      ประชากรต่างด้าว: "ชายแดน/ประชากรต่างด้าว",
+    },
+    items: [
+      "กฎหมาย ระเบียบ",
+      "แผนงานโครงการ/ตัวชี้วัด",
+      "งบประมาณ",
+      "บุคลากร/เครือข่าย",
+      "ทรัพยากร/เวชภัณฑ์",
+      "ระบบ IT",
+      "การจัดการและตอบโต้ภาวะฉุกเฉิน",
+      "การป้องกัน",
+      "การป้องกันการติดเชื้อในสถานพยาบาล",
+      "การเฝ้าระวังโรคและภัยสุขภาพ",
+      "การสอบสวน มาตรการควบคุมโรค",
+      "การตรวจตัวอย่างทางห้องปฏิบัติการ",
+      "การรักษา",
+      "การสื่อสารความเสี่ยงและพัฒนาการมีส่วนร่วมของชุมชน",
+      "เขตเมือง",
+      "ค่ายทหาร",
+      "ด่านควบคุมโรค",
+      "ชายแดน/ประชากรต่างด้าว",
+      "นักท่องเที่ยว",
+      "โรงเรียน",
+      "วัด",
+      "สถานพยาบาล",
+      "เรือนจำ",
+      "ไม่เฉพาะเจาะจง",
+      "อื่นๆ โปรดระบุ",
+    ],
+  });
 }
 
 async function seedDiseaseGroups() {
-  console.log("Start seeding disease group lookups...");
-  const diseaseGroups = [
-    "ไม่เฉพาะเจาะจง",
-    "โรคติดต่ออันตราย/โรคอุบัติใหม่/Disease X",
-    "โรคติดเชื้อระบบประสาทส่วนกลาง",
-    "โรคติดต่อนำโดยแมลง",
-    "โรคติดเชื่อระบบทางเดินหายใจ",
-    "โรคติดต่อระหว่างสัตว์สู่คน",
-    "โรคที่ป้องกันได้ด้วยวัคซีน",
-    "โรคติดเชื้อระบบทางเดินอาหารและน้ำ",
-    "โรคติดต่อจากการสัมผัส",
-    "โรคติดต่อทางเพศสัมพันธ์",
-    "โรคไม่ติดต่อ",
-    "โรคจากการประกอบอาชีพและสิ่งแวดล้อม",
-    "อุบัติเหตุจราจรทางบก",
-    "การบาดเจ็บอื่นๆ",
-    "สาธารณภัย",
-    "อื่นๆ โปรดระบุ",
-  ];
-  for (const item of diseaseGroups) {
-    await prisma.diseaseGroupLookup.upsert({
-      where: { name: item },
-      update: {},
-      create: { name: item },
-    });
-  }
-  console.log("Finished seeding disease group lookups.");
+  await syncLookup({
+    label: "disease group",
+    model: prisma.diseaseGroupLookup,
+    joinModel: prisma.tagDiseaseGroup,
+    joinKey: "groupId",
+    renames: {
+      โรคติดเชื่อระบบทางเดินหายใจ: "โรคติดเชื้อระบบทางเดินหายใจ",
+      การบาดเจ็บอื่นๆ: "การบาดเจ็บ/อุบัติเหตุ",
+    },
+    items: [
+      "โรคติดต่ออันตราย/โรคอุบัติใหม่/Disease X",
+      "โรคติดเชื้อระบบทางเดินหายใจ",
+      "โรคติดเชื้อระบบทางเดินอาหารและน้ำ",
+      "โรคที่ป้องกันได้ด้วยวัคซีน",
+      "โรคติดต่อนำโดยแมลง",
+      "โรคติดต่อระหว่างสัตว์สู่คน",
+      "โรคติดต่อจากการสัมผัส",
+      "โรคติดต่อทางเพศสัมพันธ์",
+      "โรคติดเชื้อระบบประสาทส่วนกลาง",
+      "โรคไม่ติดต่อ",
+      "โรคจากการประกอบอาชีพและสิ่งแวดล้อม",
+      "สาธารณภัย",
+      "การบาดเจ็บ/อุบัติเหตุ",
+      "ไม่เฉพาะเจาะจง",
+      "อื่นๆ โปรดระบุ",
+    ],
+  });
 }
 
 async function seedDiseases() {

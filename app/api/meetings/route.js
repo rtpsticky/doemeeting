@@ -119,6 +119,8 @@ export async function POST(request) {
     const organizerId = parseInt(formData.get("organizerId"), 10);
     const otherOrganizer = cleanText(formData.get("otherOrganizer"));
     const summary = formData.get("summary");
+    const actionItems = cleanText(formData.get("actionItems"));
+    const otherArea = cleanText(formData.get("otherArea"));
     const objectiveIds = formData
       .getAll("objectiveIds")
       .map((id) => parseInt(id, 10));
@@ -139,6 +141,7 @@ export async function POST(request) {
       !endDate ||
       !organizerId ||
       !summary ||
+      !actionItems ||
       !status ||
       !["ATTENDEE", "ORGANIZER"].includes(status) ||
       !format ||
@@ -223,6 +226,8 @@ export async function POST(request) {
         otherOrganizer,
         otherObjective,
         summary,
+        actionItems,
+        otherArea,
         summaryFileUrl,
         imageUrl1,
         imageUrl2,
