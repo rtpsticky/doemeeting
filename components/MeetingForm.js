@@ -346,18 +346,24 @@ export default function MeetingForm({
             </option>
           ))}
         </FormSelect>
+        {isOtherOrganizer && (
+          <FormInput
+            id="otherOrganizer"
+            name="otherOrganizer"
+            label="ระบุหน่วยงานผู้จัด (อื่นๆ)"
+            type="text"
+            maxLength={255}
+            required
+            defaultValue={meeting?.otherOrganizer}
+          />
+        )}
         <FormInput
-          id="otherOrganizer"
-          name="otherOrganizer"
-          label={
-            isOtherOrganizer
-              ? "หน่วยงานผู้จัด (อื่นๆ โปรดระบุ)"
-              : "หน่วยงานผู้จัดร่วม (ถ้ามี)"
-          }
+          id="coOrganizer"
+          name="coOrganizer"
+          label="หน่วยงานผู้จัดร่วม (ถ้ามี)"
           type="text"
           maxLength={255}
-          required={isOtherOrganizer}
-          defaultValue={meeting?.otherOrganizer}
+          defaultValue={meeting?.coOrganizer}
         />
       </div>
 

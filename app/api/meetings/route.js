@@ -117,7 +117,7 @@ export async function POST(request) {
     const startDate = new Date(formData.get("startDate"));
     const endDate = new Date(formData.get("endDate"));
     const organizerId = parseInt(formData.get("organizerId"), 10);
-    const otherOrganizer = cleanText(formData.get("otherOrganizer"));
+    const coOrganizer = cleanText(formData.get("coOrganizer"));
     const summary = formData.get("summary");
     const actionItems = cleanText(formData.get("actionItems"));
     const otherArea = cleanText(formData.get("otherArea"));
@@ -174,13 +174,16 @@ export async function POST(request) {
     }
 
     // ถ้าเลือก "อื่นๆ" ของผู้จัด/วัตถุประสงค์ ต้องกรอกช่องระบุเพิ่มเติม
-    const { error: otherError, otherObjective } =
-      await validateOrganizerAndObjectives({
-        organizerId,
-        otherOrganizer,
-        objectiveIds,
-        otherObjective: cleanText(formData.get("otherObjective")),
-      });
+    const {
+      error: otherError,
+      otherOrganizer,
+      otherObjective,
+    } = await validateOrganizerAndObjectives({
+      organizerId,
+      otherOrganizer: cleanText(formData.get("otherOrganizer")),
+      objectiveIds,
+      otherObjective: cleanText(formData.get("otherObjective")),
+    });
     if (otherError) {
       return NextResponse.json({ message: otherError }, { status: 400 });
     }
@@ -224,6 +227,7 @@ export async function POST(request) {
         endDate,
         organizerId,
         otherOrganizer,
+        coOrganizer,
         otherObjective,
         summary,
         actionItems,

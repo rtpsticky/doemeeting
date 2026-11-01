@@ -90,8 +90,10 @@ model MeetingReport {
   organizerId             Int
   organizer               OrganizerLookup @relation(fields: [organizerId], references: [id])
 
-  // 7. ผู้จัดประชุมอื่นๆ
+  // 7. ผู้จัดประชุมอื่นๆ (ใช้คู่กับผู้จัด "อื่นๆ โปรดระบุ" เท่านั้น)
   otherOrganizer          String?  @db.VarChar(255)
+  // หน่วยงานผู้จัดร่วม (ถ้ามี)
+  coOrganizer             String?  @db.VarChar(255)
 
   // 8. วัตถุประสงค์ (Many-to-Many Relation)
   objectives              MeetingObjective[]

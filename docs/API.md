@@ -309,7 +309,8 @@ API อนุญาตเฉพาะ origin ที่อยู่ในค่�
 | `endDate` | string | | วันที่สิ้นสุด |
 | `organizerId` | integer | | รหัสหน่วยงานผู้จัดหลัก |
 | `organizer` | Lookup | | `{ id, name }` (มีใน GET list/detail) |
-| `otherOrganizer` | string (≤255) | ✔ | ถ้า `organizer` เป็น "อื่นๆ โปรดระบุ" = ชื่อหน่วยงานผู้จัดที่กรอกเอง (บังคับ) ไม่เช่นนั้น = หน่วยงานผู้จัดร่วม (ถ้ามี) |
+| `otherOrganizer` | string (≤255) | ✔ | ชื่อหน่วยงานผู้จัดที่กรอกเอง เมื่อ `organizer` เป็น "อื่นๆ โปรดระบุ" (ไม่ใช่ "อื่นๆ" จะเป็น `null` เสมอ) |
+| `coOrganizer` | string (≤255) | ✔ | หน่วยงานผู้จัดร่วม (ถ้ามี) |
 | `otherObjective` | string (≤255) | ✔ | วัตถุประสงค์อื่นๆ (ใช้คู่กับวัตถุประสงค์ "อื่นๆ") |
 | `summary` | string | | สรุปเนื้อหาการประชุม (ข้อความธรรมดา มีขึ้นบรรทัดใหม่ได้ แสดงด้วย `white-space: pre-wrap`) |
 | `actionItems` | string | | สิ่งที่ต้องดำเนินการ (ข้อความธรรมดาเหมือน `summary`) รายงานเก่าก่อนมีฟิลด์นี้เป็น `""` |
@@ -411,6 +412,8 @@ GET /meetings?page=1&pageSize=20&search=&organizerId=
       "organizerId": 1,
       "organizer": { "id": 1, "name": "กองระบาดวิทยา" },
       "otherOrganizer": null,
+    "coOrganizer": null,
+      "coOrganizer": null,
       "otherObjective": null,
       "summary": "สรุปประเด็นสำคัญ ...",
       "summaryFileUrl": "/uploads/1762858918640-report.pdf",
@@ -457,6 +460,7 @@ GET /meetings/{id}
     "organizerId": 1,
     "organizer": { "id": 1, "name": "กองระบาดวิทยา" },
     "otherOrganizer": null,
+    "coOrganizer": null,
     "otherObjective": null,
     "summary": "สรุปประเด็นสำคัญ ...",
     "summaryFileUrl": "/uploads/1762858918640-report.pdf",
@@ -501,7 +505,8 @@ Content-Type: multipart/form-data
 | `startDate` | `YYYY-MM-DD` | ✔ | |
 | `endDate` | `YYYY-MM-DD` | ✔ | ต้องไม่ก่อน `startDate` |
 | `organizerId` | integer | ✔ | |
-| `otherOrganizer` | string | เมื่อเลือกผู้จัด "อื่นๆ โปรดระบุ" | ชื่อหน่วยงานผู้จัด (กรณีอื่นๆ) หรือหน่วยงานผู้จัดร่วม |
+| `otherOrganizer` | string | เมื่อเลือกผู้จัด "อื่นๆ โปรดระบุ" | ถ้าไม่ได้เลือก "อื่นๆ" ค่านี้จะถูกบันทึกเป็น `null` |
+| `coOrganizer` | string | | หน่วยงานผู้จัดร่วม |
 | `summary` | string | ✔ | |
 | `actionItems` | string | ✔ | สิ่งที่ต้องดำเนินการ |
 | `summarizerId` | string | ✔ อย่างใดอย่างหนึ่ง | ผู้สรุปที่เป็นผู้ใช้ในระบบ (`id` จาก `GET /lookups` → `users`) ถ้าส่งมา `summarizerName` จะถูกละเลย |
@@ -572,7 +577,7 @@ Content-Type: multipart/form-data
 
 - field เหมือน `POST /meetings` **ยกเว้นไฟล์** (`summaryFile`, `image1`, `image2` ถูกละเลย ไฟล์เดิมยังอยู่)
 - เป็น **full replace** ต้องส่งทุก field ให้ครบ รวมถึง `*Ids` ทั้งหมดที่ต้องการให้คงอยู่ (relation ที่ไม่ได้ส่งจะถูกลบ)
-- `otherOrganizer`, `otherObjective`, `otherArea`, `otherScope`, `otherDiseaseGroup` ที่ไม่ได้ส่งจะกลายเป็น `null`
+- `otherOrganizer`, `coOrganizer`, `otherObjective`, `otherArea`, `otherScope`, `otherDiseaseGroup` ที่ไม่ได้ส่งจะกลายเป็น `null`
 - ต้องส่ง `actionItems` ทุกครั้ง (รายงานเก่าที่ยังว่างต้องกรอกตอนแก้ไข)
 - ต้องส่ง `summarizerId` หรือ `summarizerName` ทุกครั้ง (รายงานเก่าที่ยังไม่มีผู้สรุปต้องระบุตอนแก้ไข) ส่วน `createdById` เปลี่ยนไม่ได้
 
@@ -877,7 +882,7 @@ DELETE /users/{id}
 | แก้ไขไฟล์แนบ | `PUT` ไม่รองรับไฟล์ เปลี่ยนหรือลบไฟล์หลังสร้างแล้วไม่ได้ | ซ่อนช่องอัปโหลดในโหมดแก้ไข แล้วแสดงลิงก์ไฟล์เดิมแทน |
 | ลบรายงาน | ไฟล์แนบยังค้างอยู่บน server | |
 | ID ที่ไม่มีอยู่จริง | `organizerId`, `objectiveIds`, `summarizerId` ที่ไม่มีในระบบได้ `400` แต่ `areaIds`, `scopeIds`, `diseaseGroupIds`, `diseaseIds` ได้ `500` | เลือกจาก `/lookups` เท่านั้น |
-| ความยาวข้อความ | `title`, `otherOrganizer`, `otherObjective`, `otherArea`, `otherScope`, `otherDiseaseGroup` เก็บได้ไม่เกิน 255 ตัวอักษร ถ้าเกินได้ `500` (ยกเว้น `summarizerName` ที่ได้ `400`) | ใส่ `maxLength={255}` |
+| ความยาวข้อความ | `title`, `otherOrganizer`, `coOrganizer`, `otherObjective`, `otherArea`, `otherScope`, `otherDiseaseGroup` เก็บได้ไม่เกิน 255 ตัวอักษร ถ้าเกินได้ `500` (ยกเว้น `summarizerName` ที่ได้ `400`) | ใส่ `maxLength={255}` |
 | ไม่มี refresh token | token หมดอายุใน 24 ชม. | เมื่อได้ `401` ให้พาไป login ใหม่ |
 | ไฟล์ที่อัปโหลดหลัง build | `next start` อาจไม่ serve ไฟล์ใหม่ใน `public/uploads` | ถ้าเปิดไฟล์แล้วได้ 404 ให้แจ้งทีม API |
 
@@ -893,7 +898,7 @@ DELETE /users/{id}
    npx prisma db push
    ```
 
-   คำสั่งนี้เพิ่มคอลัมน์ `name`, `department`, `status`, `approvedAt`, `approvedById`, `createdAt`, `updatedAt` ในตาราง `User` ผู้ใช้เดิมจะได้ `status = APPROVED` และ role เดิมไม่เปลี่ยน และเพิ่มคอลัมน์ `otherObjective`, `otherArea`, `actionItems`, `summarizerId`, `summarizerName`, `createdById` ในตาราง `MeetingReport` (รายงานเดิมจะเป็น `null` ส่วน `actionItems` เป็น `""`) และคอลัมน์ `sortOrder` ในตาราง lookup
+   คำสั่งนี้เพิ่มคอลัมน์ `name`, `department`, `status`, `approvedAt`, `approvedById`, `createdAt`, `updatedAt` ในตาราง `User` ผู้ใช้เดิมจะได้ `status = APPROVED` และ role เดิมไม่เปลี่ยน และเพิ่มคอลัมน์ `coOrganizer`, `otherObjective`, `otherArea`, `actionItems`, `summarizerId`, `summarizerName`, `createdById` ในตาราง `MeetingReport` (รายงานเดิมจะเป็น `null` ส่วน `actionItems` เป็น `""`) และคอลัมน์ `sortOrder` ในตาราง lookup
 
    จากนั้นรัน seed เพื่ออัปเดตตัวเลือก:
 

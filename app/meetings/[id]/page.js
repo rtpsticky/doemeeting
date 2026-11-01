@@ -2,7 +2,7 @@ import prisma from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import DeleteMeetingButton from "@/components/DeleteMeetingButton";
-import { isOtherOption, organizerDisplayName } from "@/lib/otherOption";
+import { organizerDisplayName } from "@/lib/otherOption";
 import {
   meetingUserSelect,
   summarizerDisplayName,
@@ -129,12 +129,10 @@ export default async function MeetingDetailsPage({ params }) {
               label="หน่วยงานผู้จัดหลัก"
               value={organizerDisplayName(meeting)}
             />
-            {!isOtherOption(meeting.organizer.name) && (
-              <DetailItem
-                label="หน่วยงานผู้จัดร่วม"
-                value={meeting.otherOrganizer}
-              />
-            )}
+            <DetailItem
+              label="หน่วยงานผู้จัดร่วม"
+              value={meeting.coOrganizer}
+            />
 
             <DetailItem
               label="ผู้สรุปการประชุม"
