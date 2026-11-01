@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
+import { cleanText, validateOrganizerAndObjectives } from "@/lib/lookups";
 
 // รายละเอียดรายงาน โดยแปลง relation เป็น array ของ { id, name }
 export async function GET(request, { params }) {
@@ -78,10 +79,10 @@ export async function PUT(request, { params }) {
     const startDate = new Date(formData.get("startDate"));
     const endDate = new Date(formData.get("endDate"));
     const organizerId = parseInt(formData.get("organizerId"), 10);
-    const otherOrganizer = formData.get("otherOrganizer");
+    const otherOrganizer = cleanText(formData.get("otherOrganizer"));
     const summary = formData.get("summary");
-    const otherScope = formData.get("otherScope");
-    const otherDiseaseGroup = formData.get("otherDiseaseGroup");
+    const otherScope = cleanText(formData.get("otherScope"));
+    const otherDiseaseGroup = cleanText(formData.get("otherDiseaseGroup"));
 
     const objectiveIds = formData
       .getAll("objectiveIds")
@@ -131,6 +132,18 @@ export async function PUT(request, { params }) {
       );
     }
 
+    // ถ้าเลือก "อื่นๆ" ของผู้จัด/วัตถุประสงค์ ต้องกรอกช่องระบุเพิ่มเติม
+    const { error: otherError, otherObjective } =
+      await validateOrganizerAndObjectives({
+        organizerId,
+        otherOrganizer,
+        objectiveIds,
+        otherObjective: cleanText(formData.get("otherObjective")),
+      });
+    if (otherError) {
+      return NextResponse.json({ message: otherError }, { status: 400 });
+    }
+
     // --- Update Database in a Transaction ---
     const updatedMeeting = await prisma.$transaction(async (tx) => {
       // 1. Update the scalar fields of the meeting report
@@ -144,6 +157,7 @@ export async function PUT(request, { params }) {
           endDate,
           organizerId,
           otherOrganizer,
+          otherObjective,
           summary,
           otherScope,
           otherDiseaseGroup,

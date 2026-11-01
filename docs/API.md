@@ -309,7 +309,8 @@ API อนุญาตเฉพาะ origin ที่อยู่ในค่�
 | `endDate` | string | | วันที่สิ้นสุด |
 | `organizerId` | integer | | รหัสหน่วยงานผู้จัดหลัก |
 | `organizer` | Lookup | | `{ id, name }` (มีใน GET list/detail) |
-| `otherOrganizer` | string (≤255) | ✔ | หน่วยงานผู้จัดร่วม/อื่นๆ |
+| `otherOrganizer` | string (≤255) | ✔ | ถ้า `organizer` เป็น "อื่นๆ โปรดระบุ" = ชื่อหน่วยงานผู้จัดที่กรอกเอง (บังคับ) ไม่เช่นนั้น = หน่วยงานผู้จัดร่วม (ถ้ามี) |
+| `otherObjective` | string (≤255) | ✔ | วัตถุประสงค์อื่นๆ (ใช้คู่กับวัตถุประสงค์ "อื่นๆ") |
 | `summary` | string | | สรุปเนื้อหาการประชุม (ข้อความธรรมดา มีขึ้นบรรทัดใหม่ได้ แสดงด้วย `white-space: pre-wrap`) |
 | `summaryFileUrl` | string | ✔ | path ไฟล์สรุป ดู [ไฟล์แนบ](#11-ไฟล์แนบ) |
 | `imageUrl1` | string | ✔ | path รูปประกอบ 1 |
@@ -329,14 +330,23 @@ Lookup ทุกตัวมีโครงสร้าง `{ "id": number, "nam
 
 | key ใน `/lookups` | ใช้กับ field | ตัวอย่างค่า |
 |---|---|---|
-| `organizers` (หน่วยงานผู้จัด) | `organizerId` (เลือก 1) | กองระบาดวิทยา, สำนักปลัดกระทรวงสาธารณสุข |
+| `organizers` (หน่วยงานผู้จัด) | `organizerId` (เลือก 1) | กองระบาดวิทยา, สำนักปลัดกระทรวงสาธารณสุข, อื่นๆ โปรดระบุ |
 | `objectives` (วัตถุประสงค์) | `objectiveIds` (≥1) | ชี้แจง, รายงานความคืบหน้า, แลกเปลี่ยนข้อมูล, หารือ/ตัดสินใจ, พัฒนาศักยภาพ, พัฒนานวัตกรรมหรือสร้างแรงบันดาลใจ, อื่นๆ |
 | `areas` (เขตสุขภาพ) | `areaIds` | เขตสุขภาพที่ 1 – 13, ไม่เฉพาะเจาะจง |
 | `scopes` (ขอบเขตงาน) | `scopeIds` | กฎหมาย ระเบียบ, งบประมาณ, การเฝ้าระวังโรคและภัยสุขภาพ, …, อื่นๆ โปรดระบุ |
 | `diseaseGroups` (กลุ่มโรค) | `diseaseGroupIds` | โรคติดต่ออันตราย/โรคอุบัติใหม่/Disease X, โรคไม่ติดต่อ, …, อื่นๆ โปรดระบุ |
 | `diseases` (โรคเฉพาะ อ้างอิง MEBS) | `diseaseIds` | กาฬโรค, โรคไข้เลือดออก, … (ประมาณ 120 รายการ ควรใช้ dropdown ที่ค้นหาได้) |
 
-> `id` ของ lookup เป็น auto-increment ในฐานข้อมูล **ห้าม hardcode** ให้ดึงจาก `GET /lookups` เสมอ ส่วนช่อง "อื่นๆ โปรดระบุ" ให้เช็คจาก `name` แล้วแสดง input `otherScope` / `otherDiseaseGroup`
+> `id` ของ lookup เป็น auto-increment ในฐานข้อมูล **ห้าม hardcode** ให้ดึงจาก `GET /lookups` เสมอ ส่วนตัวเลือก "อื่นๆ" ให้เช็คจาก `name` ที่ขึ้นต้นด้วย `อื่นๆ` แล้วแสดง input ที่คู่กัน:
+
+| ตัวเลือก "อื่นๆ" ของ | input | บังคับกรอกเมื่อเลือก |
+|---|---|---|
+| `organizers` | `otherOrganizer` | ✔ |
+| `objectives` | `otherObjective` | ✔ |
+| `scopes` | `otherScope` | |
+| `diseaseGroups` | `otherDiseaseGroup` | |
+
+> ตัวเลือก "อื่นๆ" ของ `organizers`, `objectives`, `scopes`, `diseaseGroups` จะอยู่ท้ายรายการเสมอ
 
 ### 6.3 User
 
@@ -390,6 +400,7 @@ GET /meetings?page=1&pageSize=20&search=&organizerId=
       "organizerId": 1,
       "organizer": { "id": 1, "name": "กองระบาดวิทยา" },
       "otherOrganizer": null,
+      "otherObjective": null,
       "summary": "สรุปประเด็นสำคัญ ...",
       "summaryFileUrl": "/uploads/1762858918640-report.pdf",
       "imageUrl1": null,
@@ -428,6 +439,7 @@ GET /meetings/{id}
     "organizerId": 1,
     "organizer": { "id": 1, "name": "กองระบาดวิทยา" },
     "otherOrganizer": null,
+    "otherObjective": null,
     "summary": "สรุปประเด็นสำคัญ ...",
     "summaryFileUrl": "/uploads/1762858918640-report.pdf",
     "imageUrl1": null,
@@ -464,9 +476,10 @@ Content-Type: multipart/form-data
 | `startDate` | `YYYY-MM-DD` | ✔ | |
 | `endDate` | `YYYY-MM-DD` | ✔ | ต้องไม่ก่อน `startDate` |
 | `organizerId` | integer | ✔ | |
-| `otherOrganizer` | string | | |
+| `otherOrganizer` | string | เมื่อเลือกผู้จัด "อื่นๆ โปรดระบุ" | ชื่อหน่วยงานผู้จัด (กรณีอื่นๆ) หรือหน่วยงานผู้จัดร่วม |
 | `summary` | string | ✔ | |
 | `objectiveIds` | integer (ส่งซ้ำได้) | ✔ อย่างน้อย 1 | |
+| `otherObjective` | string | เมื่อเลือกวัตถุประสงค์ "อื่นๆ" | ถ้าไม่ได้เลือก "อื่นๆ" ค่านี้จะถูกบันทึกเป็น `null` |
 | `areaIds` | integer (ส่งซ้ำได้) | | |
 | `scopeIds` | integer (ส่งซ้ำได้) | | |
 | `otherScope` | string | | |
@@ -478,7 +491,7 @@ Content-Type: multipart/form-data
 | `image2` | File | | `.jpg`, `.png`, `.webp` ไม่เกิน 10MB |
 
 - ถ้าเลือกได้หลายค่า (`*Ids`) ให้ `append` key เดิมซ้ำทีละค่า **ห้าม**ส่งเป็น JSON array หรือคั่นด้วย comma
-- field ที่ไม่บังคับและว่าง **ไม่ต้อง append** (ถ้าส่ง `""` จะถูกเก็บเป็นสตริงว่าง ไม่ใช่ `null`)
+- field ข้อความ `other*` ที่ว่างหรือมีแต่ช่องว่างจะถูกบันทึกเป็น `null`
 - ห้ามตั้ง `Content-Type` เอง ให้ browser ใส่ boundary ให้
 
 ```js
@@ -509,6 +522,8 @@ const { data } = await api("/meetings", { method: "POST", formData: fd });
 | 400 | `รูปแบบวันที่ไม่ถูกต้อง (ต้องเป็น YYYY-MM-DD)` |
 | 400 | `วันที่สิ้นสุดต้องไม่ก่อนวันที่เริ่ม` |
 | 400 | `กรุณาเลือกวัตถุประสงค์การประชุมอย่างน้อยหนึ่งข้อ` |
+| 400 | `ไม่พบหน่วยงานผู้จัดที่เลือก` / `พบวัตถุประสงค์การประชุมที่ไม่ถูกต้อง` |
+| 400 | `กรุณาระบุหน่วยงานผู้จัด (อื่นๆ)` / `กรุณาระบุวัตถุประสงค์การประชุม (อื่นๆ)` |
 | 400 | `ไฟล์ xxx มีขนาดใหญ่เกิน 10MB` / `ไฟล์ xxx ไม่ใช่ประเภทไฟล์ที่อนุญาต` |
 | 401 | `ไม่อนุญาต` |
 | 500 | `เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์` (เช่น ส่ง `organizerId` หรือ `*Ids` ที่ไม่มีอยู่จริง) |
@@ -524,7 +539,7 @@ Content-Type: multipart/form-data
 
 - field เหมือน `POST /meetings` **ยกเว้นไฟล์** (`summaryFile`, `image1`, `image2` ถูกละเลย ไฟล์เดิมยังอยู่)
 - เป็น **full replace** ต้องส่งทุก field ให้ครบ รวมถึง `*Ids` ทั้งหมดที่ต้องการให้คงอยู่ (relation ที่ไม่ได้ส่งจะถูกลบ)
-- `otherOrganizer`, `otherScope`, `otherDiseaseGroup` ที่ไม่ได้ส่งจะกลายเป็น `null`
+- `otherOrganizer`, `otherObjective`, `otherScope`, `otherDiseaseGroup` ที่ไม่ได้ส่งจะกลายเป็น `null`
 
 **Response 200**: `{ "message": "อัปเดตรายงานสำเร็จ", "data": MeetingReport }`
 
@@ -841,7 +856,13 @@ DELETE /users/{id}
    npx prisma db push
    ```
 
-   คำสั่งนี้เพิ่มคอลัมน์ `name`, `department`, `status`, `approvedAt`, `approvedById`, `createdAt`, `updatedAt` ในตาราง `User` ผู้ใช้เดิมจะได้ `status = APPROVED` และ role เดิมไม่เปลี่ยน
+   คำสั่งนี้เพิ่มคอลัมน์ `name`, `department`, `status`, `approvedAt`, `approvedById`, `createdAt`, `updatedAt` ในตาราง `User` ผู้ใช้เดิมจะได้ `status = APPROVED` และ role เดิมไม่เปลี่ยน และเพิ่มคอลัมน์ `otherObjective` ในตาราง `MeetingReport`
+
+   จากนั้นรัน seed เพื่อเพิ่มตัวเลือกหน่วยงานผู้จัด "อื่นๆ โปรดระบุ" (seed ใช้ upsert ไม่กระทบข้อมูลเดิม):
+
+   ```bash
+   npx prisma db seed
+   ```
 
 2. **ตั้งค่า env** (production):
 

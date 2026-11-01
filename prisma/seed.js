@@ -1,6 +1,20 @@
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
+// หน่วยงานผู้จัดจริงเพิ่มผ่านฐานข้อมูล ส่วน seed เพิ่มเฉพาะตัวเลือก "อื่นๆ โปรดระบุ"
+async function seedOrganizers() {
+  console.log("Start seeding organizer lookups...");
+  const organizers = ["อื่นๆ โปรดระบุ"];
+  for (const item of organizers) {
+    await prisma.organizerLookup.upsert({
+      where: { name: item },
+      update: {},
+      create: { name: item },
+    });
+  }
+  console.log("Finished seeding organizer lookups.");
+}
+
 async function seedObjectives() {
   console.log("Start seeding objective lookups...");
   const objectives = [
@@ -280,6 +294,7 @@ async function seedDiseases() {
 }
 
 async function main() {
+  await seedOrganizers();
   await seedObjectives();
   await seedAreas();
   await seedScopes();

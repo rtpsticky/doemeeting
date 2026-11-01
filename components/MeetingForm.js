@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Select from "react-select";
 import Swal from "sweetalert2";
+import { isOtherOption } from "@/lib/otherOption";
 
 // Reusable form components (no changes)
 const FormInput = ({ id, name, label, required, ...props }) => (
@@ -84,6 +85,30 @@ export default function MeetingForm({
       .map((tag) => diseaseOptions.find((opt) => opt.value === tag.diseaseId))
       .filter(Boolean);
   });
+
+  const otherOrganizerIds = organizers
+    .filter((org) => isOtherOption(org.name))
+    .map((org) => String(org.id));
+  const otherObjectiveIds = objectives
+    .filter((o) => isOtherOption(o.name))
+    .map((o) => o.id);
+
+  const [organizerId, setOrganizerId] = useState(
+    meeting?.organizerId ? String(meeting.organizerId) : "",
+  );
+  const [checkedObjectiveIds, setCheckedObjectiveIds] = useState(() =>
+    isEditMode ? meeting.objectives.map((o) => o.objectiveId) : [],
+  );
+  const isOtherOrganizer = otherOrganizerIds.includes(organizerId);
+  const isOtherObjective = checkedObjectiveIds.some((id) =>
+    otherObjectiveIds.includes(id),
+  );
+
+  const toggleObjective = (id, checked) => {
+    setCheckedObjectiveIds((prev) =>
+      checked ? [...prev, id] : prev.filter((x) => x !== id),
+    );
+  };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -257,7 +282,8 @@ export default function MeetingForm({
           name="organizerId"
           label="หน่วยงานผู้จัดหลัก"
           required
-          defaultValue={meeting?.organizerId}
+          value={organizerId}
+          onChange={(e) => setOrganizerId(e.target.value)}
         >
           <option value="">-- เลือกหน่วยงาน --</option>
           {organizers.map((org) => (
@@ -269,8 +295,14 @@ export default function MeetingForm({
         <FormInput
           id="otherOrganizer"
           name="otherOrganizer"
-          label="หน่วยงานผู้จัดร่วม (ถ้ามี)"
+          label={
+            isOtherOrganizer
+              ? "หน่วยงานผู้จัด (อื่นๆ โปรดระบุ)"
+              : "หน่วยงานผู้จัดร่วม (ถ้ามี)"
+          }
           type="text"
+          maxLength={255}
+          required={isOtherOrganizer}
           defaultValue={meeting?.otherOrganizer}
         />
       </div>
@@ -289,11 +321,9 @@ export default function MeetingForm({
                   name="objectiveIds"
                   type="checkbox"
                   value={objective.id}
-                  defaultChecked={
-                    isEditMode &&
-                    meeting.objectives.some(
-                      (o) => o.objectiveId === objective.id,
-                    )
+                  checked={checkedObjectiveIds.includes(objective.id)}
+                  onChange={(e) =>
+                    toggleObjective(objective.id, e.target.checked)
                   }
                   className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-600"
                 />
@@ -309,6 +339,17 @@ export default function MeetingForm({
             </div>
           ))}
         </div>
+        {isOtherObjective && (
+          <FormInput
+            id="otherObjective"
+            name="otherObjective"
+            label="วัตถุประสงค์ (อื่นๆ โปรดระบุ)"
+            type="text"
+            maxLength={255}
+            required
+            defaultValue={meeting?.otherObjective}
+          />
+        )}
       </div>
 
       {/* --- Summary --- */}

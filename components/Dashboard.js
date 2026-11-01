@@ -5,6 +5,7 @@ import SignOutButton from "@/components/SignOutButton";
 import DashboardControls from "@/components/DashboardControls";
 import PaginationControls from "@/components/PaginationControls";
 import DashboardCharts from "@/components/DashboardCharts";
+import { organizerDisplayName } from "@/lib/otherOption";
 
 // A simple card component for displaying stats
 const StatCard = ({ title, value }) => (
@@ -119,7 +120,7 @@ export default function Dashboard({
                         {meeting.title}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
-                        {meeting.organizer.name}
+                        {organizerDisplayName(meeting)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
                         {new Date(meeting.startDate).toLocaleDateString(

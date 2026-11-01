@@ -2,6 +2,7 @@ import prisma from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import DeleteMeetingButton from "@/components/DeleteMeetingButton";
+import { isOtherOption, organizerDisplayName } from "@/lib/otherOption";
 
 // Helper component for displaying a detail item
 const DetailItem = ({ label, value }) => {
@@ -119,12 +120,14 @@ export default async function MeetingDetailsPage({ params }) {
             <DetailItem label="รูปแบบการประชุม" value={meeting.format} />
             <DetailItem
               label="หน่วยงานผู้จัดหลัก"
-              value={meeting.organizer.name}
+              value={organizerDisplayName(meeting)}
             />
-            <DetailItem
-              label="หน่วยงานผู้จัดร่วม"
-              value={meeting.otherOrganizer}
-            />
+            {!isOtherOption(meeting.organizer.name) && (
+              <DetailItem
+                label="หน่วยงานผู้จัดร่วม"
+                value={meeting.otherOrganizer}
+              />
+            )}
 
             <div className="md:col-span-2">
               <dt className="text-sm font-medium text-slate-500">
@@ -152,13 +155,20 @@ export default async function MeetingDetailsPage({ params }) {
             รายละเอียดเพิ่มเติม
           </h3>
           <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-8">
-            <TagList
-              label="วัตถุประสงค์การประชุม"
-              items={meeting.objectives}
-              renderItem={(item) => (
-                <Tag key={item.objective.id}>{item.objective.name}</Tag>
+            <div className="md:col-span-2">
+              <TagList
+                label="วัตถุประสงค์การประชุม"
+                items={meeting.objectives}
+                renderItem={(item) => (
+                  <Tag key={item.objective.id}>{item.objective.name}</Tag>
+                )}
+              />
+              {meeting.otherObjective && (
+                <p className="mt-2 text-sm text-slate-600">
+                  อื่นๆ: {meeting.otherObjective}
+                </p>
               )}
-            />
+            </div>
             <TagList
               label="Tag Area (เขตสุขภาพ)"
               items={meeting.tagsArea}

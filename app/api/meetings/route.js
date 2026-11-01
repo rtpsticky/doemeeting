@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
+import { cleanText, validateOrganizerAndObjectives } from "@/lib/lookups";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 
@@ -107,7 +108,7 @@ export async function POST(request) {
     const startDate = new Date(formData.get("startDate"));
     const endDate = new Date(formData.get("endDate"));
     const organizerId = parseInt(formData.get("organizerId"), 10);
-    const otherOrganizer = formData.get("otherOrganizer");
+    const otherOrganizer = cleanText(formData.get("otherOrganizer"));
     const summary = formData.get("summary");
     const objectiveIds = formData
       .getAll("objectiveIds")
@@ -117,8 +118,8 @@ export async function POST(request) {
     const diseaseGroupIds = formData
       .getAll("diseaseGroupIds")
       .map((id) => parseInt(id, 10));
-    const otherScope = formData.get("otherScope");
-    const otherDiseaseGroup = formData.get("otherDiseaseGroup");
+    const otherScope = cleanText(formData.get("otherScope"));
+    const otherDiseaseGroup = cleanText(formData.get("otherDiseaseGroup"));
     const diseaseIds = formData
       .getAll("diseaseIds")
       .map((id) => parseInt(id, 10));
@@ -160,6 +161,18 @@ export async function POST(request) {
       );
     }
 
+    // ถ้าเลือก "อื่นๆ" ของผู้จัด/วัตถุประสงค์ ต้องกรอกช่องระบุเพิ่มเติม
+    const { error: otherError, otherObjective } =
+      await validateOrganizerAndObjectives({
+        organizerId,
+        otherOrganizer,
+        objectiveIds,
+        otherObjective: cleanText(formData.get("otherObjective")),
+      });
+    if (otherError) {
+      return NextResponse.json({ message: otherError }, { status: 400 });
+    }
+
     // --- Process Files ---
     const summaryFile = formData.get("summaryFile");
     const image1 = formData.get("image1");
@@ -191,6 +204,7 @@ export async function POST(request) {
         endDate,
         organizerId,
         otherOrganizer,
+        otherObjective,
         summary,
         summaryFileUrl,
         imageUrl1,

@@ -91,6 +91,7 @@ model MeetingReport {
 
   // 8. วัตถุประสงค์ (Many-to-Many Relation)
   objectives              MeetingObjective[]
+  otherObjective          String?  @db.VarChar(255) // วัตถุประสงค์: อื่นๆ โปรดระบุ
 
   // 9. สรุป & 10-12. ไฟล์แนบ
   summary                 String   @db.Text
