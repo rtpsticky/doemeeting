@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import prisma from "@/lib/prisma";
+import { requireUser } from "@/lib/auth";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 
@@ -34,11 +33,68 @@ async function processAndSaveFile(file, allowedTypes) {
   return `/uploads/${filename}`; // Return the public URL
 }
 
-export async function POST(request) {
-  const session = await getServerSession(authOptions);
-  if (!session) {
-    return NextResponse.json({ message: "ไม่อนุญาต" }, { status: 401 });
+// รายการประชุม + ค้นหา + กรองตามผู้จัด + แบ่งหน้า
+export async function GET(request) {
+  const { error: authError } = await requireUser(request);
+  if (authError) return authError;
+
+  const { searchParams } = new URL(request.url);
+  const page = Math.max(parseInt(searchParams.get("page")) || 1, 1);
+  const pageSize = Math.min(
+    Math.max(parseInt(searchParams.get("pageSize")) || 20, 1),
+    100,
+  );
+  const search = searchParams.get("search") || "";
+  const organizerIdParam = searchParams.get("organizerId");
+  const organizerId = organizerIdParam ? parseInt(organizerIdParam, 10) : null;
+
+  if (organizerIdParam && isNaN(organizerId)) {
+    return NextResponse.json(
+      { message: "organizerId ไม่ถูกต้อง" },
+      { status: 400 },
+    );
   }
+
+  const where = {
+    AND: [
+      search ? { title: { contains: search, mode: "insensitive" } } : {},
+      organizerId ? { organizerId } : {},
+    ],
+  };
+
+  try {
+    const [meetings, total] = await Promise.all([
+      prisma.meetingReport.findMany({
+        where,
+        include: { organizer: true },
+        orderBy: { startDate: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      prisma.meetingReport.count({ where }),
+    ]);
+
+    return NextResponse.json({
+      data: meetings,
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages: Math.ceil(total / pageSize),
+      },
+    });
+  } catch (error) {
+    console.error("Error listing meetings:", error);
+    return NextResponse.json(
+      { message: "เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์" },
+      { status: 500 },
+    );
+  }
+}
+
+export async function POST(request) {
+  const { error: authError } = await requireUser(request);
+  if (authError) return authError;
 
   try {
     await mkdir(UPLOAD_DIR, { recursive: true }); // Ensure upload directory exists
@@ -80,6 +136,19 @@ export async function POST(request) {
     ) {
       return NextResponse.json(
         { message: "กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วนและถูกต้อง" },
+        { status: 400 },
+      );
+    }
+
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      return NextResponse.json(
+        { message: "รูปแบบวันที่ไม่ถูกต้อง (ต้องเป็น YYYY-MM-DD)" },
+        { status: 400 },
+      );
+    }
+    if (endDate < startDate) {
+      return NextResponse.json(
+        { message: "วันที่สิ้นสุดต้องไม่ก่อนวันที่เริ่ม" },
         { status: 400 },
       );
     }

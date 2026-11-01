@@ -1,38 +1,10 @@
-import prisma from "@/lib/prisma";
+import { getLookups } from "@/lib/lookups";
 import MeetingForm from "@/components/MeetingForm";
 import Link from "next/link";
 
 export default async function NewMeetingPage() {
-  // Fetch lookup data in parallel for efficiency
-  const [organizers, objectives, areas, scopes, diseaseGroups, diseases] =
-    await Promise.all([
-      prisma.organizerLookup.findMany({ orderBy: { name: "asc" } }),
-      prisma.objectiveLookup.findMany({ orderBy: { name: "asc" } }),
-      prisma.areaLookup.findMany(), // Remove default asc sort to apply custom sort
-      prisma.scopeLookup.findMany({ orderBy: { name: "asc" } }),
-      prisma.diseaseGroupLookup.findMany({ orderBy: { name: "asc" } }),
-      prisma.diseaseLookup.findMany({ orderBy: { name: "asc" } }),
-    ]);
-
-  // Custom sort for Tag Area (เขตสุขภาพ)
-  areas.sort((a, b) => {
-    const aName = a.name;
-    const bName = b.name;
-
-    if (aName === "ไม่เฉพาะเจาะจง") return 1;
-    if (bName === "ไม่เฉพาะเจาะจง") return -1;
-
-    // Extract numbers for sorting 'เขตสุขภาพที่ X'
-    const aNumMatch = aName.match(/(\d+)/);
-    const bNumMatch = bName.match(/(\d+)/);
-
-    if (aNumMatch && bNumMatch) {
-      return parseInt(aNumMatch[0], 10) - parseInt(bNumMatch[0], 10);
-    }
-
-    // Fallback for any other cases that don't match the pattern
-    return aName.localeCompare(bName, "th");
-  });
+  const { organizers, objectives, areas, scopes, diseaseGroups, diseases } =
+    await getLookups();
 
   return (
     <div className="min-h-screen bg-slate-50">

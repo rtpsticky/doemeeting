@@ -182,9 +182,22 @@ model User {
 
   password      String?    // รหัสผ่านที่ถูก Hash แล้ว (เป็น String?)
 
+  // ชื่อ-นามสกุล / หน่วยงาน ของผู้ใช้
+  name          String?
+  department    String?
+
   emailVerified DateTime?
   image         String?
-  role          Role      @default(ADMIN)
+  role          Role       @default(USER)
+
+  // สถานะบัญชี: ค่า default เป็น APPROVED เพื่อให้ผู้ใช้เดิมและผู้ใช้ที่แอดมินสร้างใช้งานได้ทันที
+  // ผู้ใช้ที่สมัครเองผ่าน /api/register จะถูกตั้งเป็น PENDING
+  status        UserStatus @default(APPROVED)
+  approvedAt    DateTime?
+  approvedById  String?
+
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @default(now()) @updatedAt // มี default เพื่อให้เพิ่มคอลัมน์ในตารางที่มีข้อมูลอยู่แล้วได้
 
   accounts      Account[]
   sessions      Session[]
@@ -224,4 +237,11 @@ model Session {
 enum Role {
   ADMIN // ผู้ดูแลระบบ (จัดการข้อมูล)
   USER  // ถ้ามีการกำหนดสิทธิ์อื่นๆ ในอนาคต
+}
+
+enum UserStatus {
+  PENDING   // รอแอดมินอนุมัติ
+  APPROVED  // ใช้งานได้
+  REJECTED  // ไม่อนุมัติ
+  SUSPENDED // ระงับการใช้งาน
 }

@@ -2,6 +2,7 @@ import prisma from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import MeetingForm from "@/components/MeetingForm";
+import { getLookups } from "@/lib/lookups";
 
 export default async function EditMeetingPage({ params }) {
   const resolvedParams = await params;
@@ -11,15 +12,7 @@ export default async function EditMeetingPage({ params }) {
   }
 
   // Fetch all data needed for the form in parallel
-  const [
-    meeting,
-    organizers,
-    objectives,
-    areas,
-    scopes,
-    diseaseGroups,
-    diseases,
-  ] = await Promise.all([
+  const [meeting, lookups] = await Promise.all([
     prisma.meetingReport.findUnique({
       where: { id },
       include: {
@@ -30,31 +23,15 @@ export default async function EditMeetingPage({ params }) {
         tagsDisease: { select: { diseaseId: true } },
       },
     }),
-    prisma.organizerLookup.findMany({ orderBy: { name: "asc" } }),
-    prisma.objectiveLookup.findMany({ orderBy: { name: "asc" } }),
-    prisma.areaLookup.findMany(), // Custom sort will be applied
-    prisma.scopeLookup.findMany({ orderBy: { name: "asc" } }),
-    prisma.diseaseGroupLookup.findMany({ orderBy: { name: "asc" } }),
-    prisma.diseaseLookup.findMany({ orderBy: { name: "asc" } }),
+    getLookups(),
   ]);
 
   if (!meeting) {
     notFound();
   }
 
-  // Custom sort for Tag Area (same as in new page)
-  areas.sort((a, b) => {
-    const aName = a.name;
-    const bName = b.name;
-    if (aName === "ไม่เฉพาะเจาะจง") return 1;
-    if (bName === "ไม่เฉพาะเจาะจง") return -1;
-    const aNumMatch = aName.match(/(\d+)/);
-    const bNumMatch = bName.match(/(\d+)/);
-    if (aNumMatch && bNumMatch) {
-      return parseInt(aNumMatch[0], 10) - parseInt(bNumMatch[0], 10);
-    }
-    return aName.localeCompare(bName, "th");
-  });
+  const { organizers, objectives, areas, scopes, diseaseGroups, diseases } =
+    lookups;
 
   return (
     <div className="min-h-screen bg-slate-50">

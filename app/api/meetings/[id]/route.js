@@ -1,13 +1,66 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import prisma from "@/lib/prisma";
+import { requireUser } from "@/lib/auth";
+
+// รายละเอียดรายงาน โดยแปลง relation เป็น array ของ { id, name }
+export async function GET(request, { params }) {
+  const { error: authError } = await requireUser(request);
+  if (authError) return authError;
+
+  const resolvedParams = await params;
+  const id = parseInt(resolvedParams.id);
+  if (isNaN(id)) {
+    return NextResponse.json({ message: "ID ไม่ถูกต้อง" }, { status: 400 });
+  }
+
+  try {
+    const meeting = await prisma.meetingReport.findUnique({
+      where: { id },
+      include: {
+        organizer: true,
+        objectives: { include: { objective: true } },
+        tagsArea: { include: { area: true } },
+        tagsScope: { include: { scope: true } },
+        tagsDiseaseGroup: { include: { group: true } },
+        tagsDisease: { include: { disease: true } },
+      },
+    });
+
+    if (!meeting) {
+      return NextResponse.json({ message: "ไม่พบรายงาน" }, { status: 404 });
+    }
+
+    const {
+      objectives,
+      tagsArea,
+      tagsScope,
+      tagsDiseaseGroup,
+      tagsDisease,
+      ...rest
+    } = meeting;
+
+    return NextResponse.json({
+      data: {
+        ...rest,
+        objectives: objectives.map((item) => item.objective),
+        areas: tagsArea.map((item) => item.area),
+        scopes: tagsScope.map((item) => item.scope),
+        diseaseGroups: tagsDiseaseGroup.map((item) => item.group),
+        diseases: tagsDisease.map((item) => item.disease),
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching meeting:", error);
+    return NextResponse.json(
+      { message: "เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์" },
+      { status: 500 },
+    );
+  }
+}
 
 export async function PUT(request, { params }) {
-  const session = await getServerSession(authOptions);
-  if (!session) {
-    return NextResponse.json({ message: "ไม่อนุญาต" }, { status: 401 });
-  }
+  const { error: authError } = await requireUser(request);
+  if (authError) return authError;
 
   const resolvedParams = await params;
   const id = parseInt(resolvedParams.id);
@@ -58,6 +111,19 @@ export async function PUT(request, { params }) {
         { status: 400 },
       );
     }
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      return NextResponse.json(
+        { message: "รูปแบบวันที่ไม่ถูกต้อง (ต้องเป็น YYYY-MM-DD)" },
+        { status: 400 },
+      );
+    }
+    if (endDate < startDate) {
+      return NextResponse.json(
+        { message: "วันที่สิ้นสุดต้องไม่ก่อนวันที่เริ่ม" },
+        { status: 400 },
+      );
+    }
+
     if (objectiveIds.length === 0) {
       return NextResponse.json(
         { message: "กรุณาเลือกวัตถุประสงค์การประชุมอย่างน้อยหนึ่งข้อ" },
@@ -132,6 +198,13 @@ export async function PUT(request, { params }) {
       { status: 200 },
     );
   } catch (error) {
+    // P2025 = ไม่พบรายงานที่ต้องการแก้ไข
+    if (error?.code === "P2025") {
+      return NextResponse.json(
+        { message: "ไม่พบรายงานที่ต้องการแก้ไข" },
+        { status: 404 },
+      );
+    }
     console.error("Error updating meeting:", error);
     return NextResponse.json(
       { message: "เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์" },
@@ -141,10 +214,8 @@ export async function PUT(request, { params }) {
 }
 
 export async function DELETE(request, { params }) {
-  const session = await getServerSession(authOptions);
-  if (!session) {
-    return NextResponse.json({ message: "ไม่อนุญาต" }, { status: 401 });
-  }
+  const { error: authError } = await requireUser(request);
+  if (authError) return authError;
 
   const resolvedParams = await params;
   const id = parseInt(resolvedParams.id);

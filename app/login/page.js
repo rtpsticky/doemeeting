@@ -21,7 +21,11 @@ export default function LoginPage() {
     });
 
     if (result.error) {
-      setError("ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง");
+      setError(
+        result.error === "CredentialsSignin"
+          ? "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง"
+          : result.error,
+      );
     } else {
       router.push("/");
     }
