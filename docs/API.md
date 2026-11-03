@@ -45,6 +45,7 @@ https://epid-odpc2.ddc.moph.go.th/doemeeting/api
 | DELETE | `/meetings/{id}` | 🔑 | ลบรายงาน |
 | GET | `/lookups` | 🔑 | ตัวเลือก (master data) ทั้งหมดสำหรับฟอร์ม |
 | GET | `/stats/meetings-by-organizer` | 🔑 | ข้อมูลกราฟจำนวนประชุมแยกตามผู้จัด |
+| GET | `/stats/meetings-by-month` | 🔑 | ข้อมูลกราฟจำนวนประชุมรายเดือน |
 | GET | `/users` | 👑 | รายการผู้ใช้ |
 | POST | `/users` | 👑 | เพิ่มผู้ใช้ |
 | GET | `/users/{id}` | 👑 | รายละเอียดผู้ใช้ |
@@ -386,17 +387,37 @@ API ไม่ส่ง `password` กลับมาในทุกกรณี
 ### 7.1 รายการประชุม
 
 ```http
-GET /meetings?page=1&pageSize=20&search=&organizerId=
+GET /meetings?page=1&pageSize=20&keyword=&dateFrom=&dateTo=&organizerId=&department=&scopeId=&diseaseGroupId=&diseaseId=
 ```
 
 | Query | Type | Default | คำอธิบาย |
 |---|---|---|---|
 | `page` | integer | `1` | |
 | `pageSize` | integer | `20` | สูงสุด 100 |
-| `search` | string | | ค้นจาก `title` (contains, ไม่สนตัวพิมพ์ใหญ่-เล็ก) |
-| `organizerId` | integer | | กรองตามหน่วยงานผู้จัด |
+| `search` | string | | ค้นจาก `title` อย่างเดียว (contains, ไม่สนตัวพิมพ์ใหญ่-เล็ก) คงไว้เพื่อให้เว็บเดิมใช้ได้ |
+| `keyword` | string (ส่งซ้ำได้) | | ค้นแบบ contains ไม่สนตัวพิมพ์ใหญ่-เล็ก ใน `title`, `summary`, `decisions`, `actionItems`, `coOrganizer`, `otherOrganizer`, `otherObjective`, `otherScope`, `otherDiseaseGroup` และชื่อ lookup ที่ผูกกับรายงาน (ผู้จัด, วัตถุประสงค์, scope, กลุ่มโรค, โรค) ส่งหลายคำ = ต้องเจอ**ทุกคำ** (AND) แต่ละคำเจอที่ช่องไหนก็ได้ |
+| `dateFrom` | `YYYY-MM-DD` | | `startDate >= dateFrom` |
+| `dateTo` | `YYYY-MM-DD` | | `startDate <= dateTo` (รวมทั้งวัน) |
+| `organizerId` | integer (ส่งซ้ำได้) | | หน่วยงานผู้จัดอยู่ในรายการ (OR) ส่งค่าเดียวได้เหมือนเดิม |
+| `department` | string | | `createdBy.department` หรือ `summarizer.department` ตรงกับค่านี้ (ตรงทุกตัวอักษร) |
+| `scopeId` | integer (ส่งซ้ำได้) | | มี scope อย่างน้อย 1 ตัวในรายการ (OR) |
+| `diseaseGroupId` | integer (ส่งซ้ำได้) | | มีกลุ่มโรคอย่างน้อย 1 ตัวในรายการ (OR) |
+| `diseaseId` | integer (ส่งซ้ำได้) | | มีโรคอย่างน้อย 1 ตัวในรายการ (OR) |
 
-เรียงตาม `startDate` ใหม่ → เก่า
+- "ส่งซ้ำได้" = `append` key เดิมหลายครั้ง เช่น `scopeId=4&scopeId=9` **ห้าม**คั่นด้วย comma
+- ตัวกรองต่างชนิดรวมกันแบบ AND เช่น `scopeId=4&diseaseId=7` = ต้องมีทั้งสองอย่าง
+- query ที่ว่าง (เช่น `keyword=`) ถูกละเลย
+- `pagination.total` / `totalPages` นับหลังกรองแล้ว
+- เรียงตาม `startDate` ใหม่ → เก่า
+- แต่ละรายการมีทุก field ของ [MeetingReport](#61-meetingreport) รวมถึง `decisions` และ `actionItems` (ใช้ทำ popup ตอนชี้เมาส์ได้เลย ไม่ต้องเรียก `GET /meetings/{id}`) แต่ไม่มี tag (`objectives`, `areas`, ...)
+
+```js
+const qs = new URLSearchParams({ page: "1", dateFrom: "2026-01-01", dateTo: "2026-12-31" });
+["ไข้เลือดออก", "เขต 6"].forEach((k) => qs.append("keyword", k));
+[1, 3].forEach((id) => qs.append("organizerId", id));
+qs.append("scopeId", "4");
+const { data, pagination } = await api(`/meetings?${qs}`);
+```
 
 **Response 200**
 
@@ -440,7 +461,13 @@ GET /meetings?page=1&pageSize=20&search=&organizerId=
 
 ถ้าไม่พบข้อมูล `data` เป็น `[]` และ `totalPages` เป็น `0`
 
-**Errors**: `400` (`organizerId ไม่ถูกต้อง`), `401`
+**Errors**
+
+| Status | `message` |
+|---|---|
+| 400 | `organizerId ไม่ถูกต้อง` / `scopeId ไม่ถูกต้อง` / `diseaseGroupId ไม่ถูกต้อง` / `diseaseId ไม่ถูกต้อง` (มีค่าที่ไม่ใช่จำนวนเต็มบวก) |
+| 400 | `dateFrom ไม่ถูกต้อง (ต้องเป็น YYYY-MM-DD)` / `dateTo ไม่ถูกต้อง (ต้องเป็น YYYY-MM-DD)` (รวมวันที่ที่ไม่มีจริง เช่น `2026-02-30`) |
+| 401 | `ไม่อนุญาต` |
 
 ### 7.2 รายละเอียดรายงาน
 
@@ -652,6 +679,31 @@ GET /stats/meetings-by-organizer
 ```
 
 `byOrganizer` เรียงตาม `count` มาก → น้อย และมีเฉพาะผู้จัดที่มีรายงานอย่างน้อย 1 รายการ รายงานที่เลือกผู้จัด "อื่นๆ โปรดระบุ" จะถูกนับรวมเป็นแท่งเดียวชื่อ "อื่นๆ โปรดระบุ"
+
+### 8.3 สถิติจำนวนประชุมรายเดือน
+
+```http
+GET /stats/meetings-by-month
+```
+
+**Response 200**
+
+```json
+{
+  "data": [
+    { "month": "2025-10", "count": 12 },
+    { "month": "2025-12", "count": 4 },
+    { "month": "2026-01", "count": 9 }
+  ]
+}
+```
+
+- นับรายงานทั้งหมดตามเดือนของ `startDate` (วันที่ตามที่ผู้ใช้กรอก คือเวลาไทย)
+- `month` รูปแบบ `YYYY-MM` เรียงเก่า → ใหม่ ครอบคลุมทุกปีที่มีข้อมูล
+- มีเฉพาะเดือนที่มีรายงาน เดือนที่ไม่มีให้ front-end เติมเป็น `0` เอง
+- ไม่รับตัวกรอง นับจากรายงานทั้งหมดเสมอ
+
+**Errors**: `401`, `500`
 
 ---
 

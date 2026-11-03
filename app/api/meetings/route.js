@@ -39,7 +39,52 @@ async function processAndSaveFile(file, allowedTypes) {
   return `/uploads/${filename}`; // Return the public URL
 }
 
-// รายการประชุม + ค้นหา + กรองตามผู้จัด + แบ่งหน้า
+// ช่องข้อความที่ใช้ค้นหาด้วย keyword
+const KEYWORD_TEXT_FIELDS = [
+  "title",
+  "summary",
+  "decisions",
+  "actionItems",
+  "coOrganizer",
+  "otherOrganizer",
+  "otherObjective",
+  "otherScope",
+  "otherDiseaseGroup",
+];
+
+// รับเฉพาะ YYYY-MM-DD ที่เป็นวันที่จริง (เช่น 2026-02-30 ไม่ผ่าน)
+function parseDateParam(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const date = new Date(value);
+  if (isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== value) {
+    return null;
+  }
+  return date;
+}
+
+// query ที่ส่งซ้ำได้ เช่น scopeId=4&scopeId=9 ถ้ามีค่าที่ไม่ใช่ตัวเลขคืน null
+function parseIdParams(searchParams, key) {
+  const values = searchParams.getAll(key).filter((v) => v.trim() !== "");
+  if (!values.every((v) => /^\d+$/.test(v.trim()))) return null;
+  return values.map((v) => parseInt(v, 10));
+}
+
+// คำค้นหนึ่งคำต้องเจอในช่องข้อความหรือชื่อ lookup ที่ผูกกับรายงานอย่างน้อยหนึ่งที่
+function keywordCondition(keyword) {
+  const contains = { contains: keyword, mode: "insensitive" };
+  return {
+    OR: [
+      ...KEYWORD_TEXT_FIELDS.map((field) => ({ [field]: contains })),
+      { organizer: { name: contains } },
+      { objectives: { some: { objective: { name: contains } } } },
+      { tagsScope: { some: { scope: { name: contains } } } },
+      { tagsDiseaseGroup: { some: { group: { name: contains } } } },
+      { tagsDisease: { some: { disease: { name: contains } } } },
+    ],
+  };
+}
+
+// รายการประชุม + ค้นหา + ตัวกรอง + แบ่งหน้า
 export async function GET(request) {
   const { error: authError } = await requireUser(request);
   if (authError) return authError;
@@ -51,20 +96,72 @@ export async function GET(request) {
     100,
   );
   const search = searchParams.get("search") || "";
-  const organizerIdParam = searchParams.get("organizerId");
-  const organizerId = organizerIdParam ? parseInt(organizerIdParam, 10) : null;
+  const keywords = searchParams
+    .getAll("keyword")
+    .map((k) => k.trim())
+    .filter(Boolean);
+  const department = searchParams.get("department")?.trim() || "";
 
-  if (organizerIdParam && isNaN(organizerId)) {
-    return NextResponse.json(
-      { message: "organizerId ไม่ถูกต้อง" },
-      { status: 400 },
-    );
+  const idFilters = {
+    organizerId: "organizerId ไม่ถูกต้อง",
+    scopeId: "scopeId ไม่ถูกต้อง",
+    diseaseGroupId: "diseaseGroupId ไม่ถูกต้อง",
+    diseaseId: "diseaseId ไม่ถูกต้อง",
+  };
+  const ids = {};
+  for (const [key, message] of Object.entries(idFilters)) {
+    ids[key] = parseIdParams(searchParams, key);
+    if (!ids[key]) {
+      return NextResponse.json({ message }, { status: 400 });
+    }
   }
 
+  const dates = {};
+  for (const key of ["dateFrom", "dateTo"]) {
+    const value = searchParams.get(key)?.trim();
+    if (!value) continue;
+    dates[key] = parseDateParam(value);
+    if (!dates[key]) {
+      return NextResponse.json(
+        { message: `${key} ไม่ถูกต้อง (ต้องเป็น YYYY-MM-DD)` },
+        { status: 400 },
+      );
+    }
+  }
+
+  // startDate เก็บเป็นวันที่อย่างเดียว lte dateTo จึงรวมทั้งวัน
+  const startDate = {};
+  if (dates.dateFrom) startDate.gte = dates.dateFrom;
+  if (dates.dateTo) startDate.lte = dates.dateTo;
+
+  // ตัวกรองต่างชนิดรวมแบบ AND ส่วนค่าหลายค่าในตัวกรองเดียวกันเป็น OR
   const where = {
     AND: [
       search ? { title: { contains: search, mode: "insensitive" } } : {},
-      organizerId ? { organizerId } : {},
+      ...keywords.map(keywordCondition),
+      dates.dateFrom || dates.dateTo ? { startDate } : {},
+      ids.organizerId.length ? { organizerId: { in: ids.organizerId } } : {},
+      department
+        ? {
+            OR: [
+              { createdBy: { department } },
+              { summarizer: { department } },
+            ],
+          }
+        : {},
+      ids.scopeId.length
+        ? { tagsScope: { some: { scopeId: { in: ids.scopeId } } } }
+        : {},
+      ids.diseaseGroupId.length
+        ? {
+            tagsDiseaseGroup: {
+              some: { groupId: { in: ids.diseaseGroupId } },
+            },
+          }
+        : {},
+      ids.diseaseId.length
+        ? { tagsDisease: { some: { diseaseId: { in: ids.diseaseId } } } }
+        : {},
     ],
   };
 
