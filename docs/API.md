@@ -313,6 +313,7 @@ API อนุญาตเฉพาะ origin ที่อยู่ในค่�
 | `coOrganizer` | string (≤255) | ✔ | หน่วยงานผู้จัดร่วม (ถ้ามี) |
 | `otherObjective` | string (≤255) | ✔ | วัตถุประสงค์อื่นๆ (ใช้คู่กับวัตถุประสงค์ "อื่นๆ") |
 | `summary` | string | | สรุปเนื้อหาการประชุม (ข้อความธรรมดา มีขึ้นบรรทัดใหม่ได้ แสดงด้วย `white-space: pre-wrap`) |
+| `decisions` | string | ✔ | มติ/การตัดสินใจ (ข้อความยาวไม่จำกัดความยาว มีขึ้นบรรทัดใหม่ได้ เหมือน `summary`) ไม่ได้กรอกหรือรายงานเก่าเป็น `null` |
 | `actionItems` | string | | สิ่งที่ต้องดำเนินการ (ข้อความธรรมดาเหมือน `summary`) รายงานเก่าก่อนมีฟิลด์นี้เป็น `""` |
 | `summaryFileUrl` | string | ✔ | path ไฟล์สรุป ดู [ไฟล์แนบ](#11-ไฟล์แนบ) |
 | `imageUrl1` | string | ✔ | path รูปประกอบ 1 |
@@ -419,6 +420,7 @@ GET /meetings?page=1&pageSize=20&search=&organizerId=
       "summaryFileUrl": "/uploads/1762858918640-report.pdf",
       "imageUrl1": null,
       "imageUrl2": null,
+      "decisions": "ที่ประชุมเห็นชอบแนวทางเฝ้าระวังฉบับปรับปรุง",
       "actionItems": "ส่งแนวทางให้ สคร. ภายใน 30 พ.ย.",
       "otherArea": null,
       "otherScope": null,
@@ -466,6 +468,7 @@ GET /meetings/{id}
     "summaryFileUrl": "/uploads/1762858918640-report.pdf",
     "imageUrl1": null,
     "imageUrl2": null,
+    "decisions": "ที่ประชุมเห็นชอบแนวทางเฝ้าระวังฉบับปรับปรุง",
     "actionItems": "ส่งแนวทางให้ สคร. ภายใน 30 พ.ย.",
     "otherArea": null,
     "otherScope": null,
@@ -508,6 +511,7 @@ Content-Type: multipart/form-data
 | `otherOrganizer` | string | เมื่อเลือกผู้จัด "อื่นๆ โปรดระบุ" | ถ้าไม่ได้เลือก "อื่นๆ" ค่านี้จะถูกบันทึกเป็น `null` |
 | `coOrganizer` | string | | หน่วยงานผู้จัดร่วม |
 | `summary` | string | ✔ | |
+| `decisions` | string | | มติ/การตัดสินใจ ว่างหรือมีแต่ช่องว่างจะถูกบันทึกเป็น `null` |
 | `actionItems` | string | ✔ | สิ่งที่ต้องดำเนินการ |
 | `summarizerId` | string | ✔ อย่างใดอย่างหนึ่ง | ผู้สรุปที่เป็นผู้ใช้ในระบบ (`id` จาก `GET /lookups` → `users`) ถ้าส่งมา `summarizerName` จะถูกละเลย |
 | `summarizerName` | string (≤255) | ✔ อย่างใดอย่างหนึ่ง | ชื่อผู้สรุปที่พิมพ์เอง |
@@ -538,6 +542,7 @@ fd.append("startDate", "2026-10-15");
 fd.append("endDate", "2026-10-15");
 fd.append("organizerId", "1");
 fd.append("summary", "สรุปประเด็นสำคัญ ...");
+fd.append("decisions", "ที่ประชุมเห็นชอบแนวทางเฝ้าระวังฉบับปรับปรุง");
 fd.append("actionItems", "ส่งแนวทางให้ สคร. ภายใน 30 พ.ย.");
 fd.append("summarizerId", "clx2abc..."); // หรือ fd.append("summarizerName", "ชื่อที่พิมพ์เอง")
 [1, 3].forEach((id) => fd.append("objectiveIds", id));
@@ -577,7 +582,7 @@ Content-Type: multipart/form-data
 
 - field เหมือน `POST /meetings` **ยกเว้นไฟล์** (`summaryFile`, `image1`, `image2` ถูกละเลย ไฟล์เดิมยังอยู่)
 - เป็น **full replace** ต้องส่งทุก field ให้ครบ รวมถึง `*Ids` ทั้งหมดที่ต้องการให้คงอยู่ (relation ที่ไม่ได้ส่งจะถูกลบ)
-- `otherOrganizer`, `coOrganizer`, `otherObjective`, `otherArea`, `otherScope`, `otherDiseaseGroup` ที่ไม่ได้ส่งจะกลายเป็น `null`
+- `otherOrganizer`, `coOrganizer`, `otherObjective`, `decisions`, `otherArea`, `otherScope`, `otherDiseaseGroup` ที่ไม่ได้ส่งจะกลายเป็น `null`
 - ต้องส่ง `actionItems` ทุกครั้ง (รายงานเก่าที่ยังว่างต้องกรอกตอนแก้ไข)
 - ต้องส่ง `summarizerId` หรือ `summarizerName` ทุกครั้ง (รายงานเก่าที่ยังไม่มีผู้สรุปต้องระบุตอนแก้ไข) ส่วน `createdById` เปลี่ยนไม่ได้
 
@@ -898,7 +903,7 @@ DELETE /users/{id}
    npx prisma db push
    ```
 
-   คำสั่งนี้เพิ่มคอลัมน์ `name`, `department`, `status`, `approvedAt`, `approvedById`, `createdAt`, `updatedAt` ในตาราง `User` ผู้ใช้เดิมจะได้ `status = APPROVED` และ role เดิมไม่เปลี่ยน และเพิ่มคอลัมน์ `coOrganizer`, `otherObjective`, `otherArea`, `actionItems`, `summarizerId`, `summarizerName`, `createdById` ในตาราง `MeetingReport` (รายงานเดิมจะเป็น `null` ส่วน `actionItems` เป็น `""`) และคอลัมน์ `sortOrder` ในตาราง lookup
+   คำสั่งนี้เพิ่มคอลัมน์ `name`, `department`, `status`, `approvedAt`, `approvedById`, `createdAt`, `updatedAt` ในตาราง `User` ผู้ใช้เดิมจะได้ `status = APPROVED` และ role เดิมไม่เปลี่ยน และเพิ่มคอลัมน์ `coOrganizer`, `otherObjective`, `otherArea`, `decisions`, `actionItems`, `summarizerId`, `summarizerName`, `createdById` ในตาราง `MeetingReport` (รายงานเดิมจะเป็น `null` ส่วน `actionItems` เป็น `""`) และคอลัมน์ `sortOrder` ในตาราง lookup
 
    จากนั้นรัน seed เพื่ออัปเดตตัวเลือก:
 

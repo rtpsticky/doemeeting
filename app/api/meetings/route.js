@@ -119,6 +119,7 @@ export async function POST(request) {
     const organizerId = parseInt(formData.get("organizerId"), 10);
     const coOrganizer = cleanText(formData.get("coOrganizer"));
     const summary = formData.get("summary");
+    const decisions = cleanText(formData.get("decisions"));
     const actionItems = cleanText(formData.get("actionItems"));
     const otherArea = cleanText(formData.get("otherArea"));
     const objectiveIds = formData
@@ -230,6 +231,7 @@ export async function POST(request) {
         coOrganizer,
         otherObjective,
         summary,
+        decisions,
         actionItems,
         otherArea,
         summaryFileUrl,

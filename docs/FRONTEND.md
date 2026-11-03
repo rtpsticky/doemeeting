@@ -265,6 +265,8 @@
  │ ...                     ...                             │
  │ สรุปเนื้อหาการประชุม                                        │
  │ {summary แบบ pre-wrap}                                   │
+ │ มติ/การตัดสินใจ                                            │
+ │ {decisions แบบ pre-wrap}                                 │
  │ สิ่งที่ต้องดำเนินการ                                          │
  │ {actionItems แบบ pre-wrap}                               │
  │ ไฟล์แนบ                                                  │
@@ -288,6 +290,7 @@
 | ผู้สรุปการประชุม | `summarizer.name ?? summarizer.username ?? summarizerName` | ซ่อนถ้าว่าง |
 | ผู้ทำรายการ | `createdBy.name ?? createdBy.username` | ซ่อนถ้าว่าง (รายงานเก่า) |
 | สรุปเนื้อหาการประชุม | `summary` | `whitespace-pre-wrap` แสดงเป็นข้อความธรรมดา ห้าม render เป็น HTML |
+| มติ/การตัดสินใจ | `decisions` | เหมือน `summary` ถ้าเป็น `null` แสดง "-" |
 | สิ่งที่ต้องดำเนินการ | `actionItems` | เหมือน `summary` ถ้าว่าง (รายงานเก่า) แสดง "-" |
 | ไฟล์แนบ | `summaryFileUrl`, `imageUrl1`, `imageUrl2` | ลิงก์เปิดแท็บใหม่ (`target="_blank" rel="noopener noreferrer"`) ซ่อนตัวที่เป็น `null` ต่อ URL ตาม [API.md ข้อ 11](API.md#11-ไฟล์แนบ) |
 | Tag ต่างๆ | `objectives`, `areas`, `scopes`, `diseaseGroups`, `diseases` | แสดงเป็น pill ซ่อนทั้งหัวข้อถ้า array ว่าง |
@@ -329,6 +332,7 @@
 | 4 | **สรุปการประชุม** | — | Text "ผู้ทำรายการ" disabled แสดงผู้ที่ login จาก `GET /me` (โหมดแก้ไขแสดง `createdBy` ถ้าเป็น `null` แสดง "-") ไม่ต้องส่งไป API | | ผู้ที่ login |
 | | | `summarizerId` / `summarizerName` | Combobox "ผู้สรุปการประชุม" placeholder "เลือกผู้ใช้ หรือพิมพ์ชื่อ..." เลือกจาก `lookups.users` (label `name (department)`) หรือพิมพ์ชื่อเองได้ (เลือก → ส่ง `summarizerId`, พิมพ์ → ส่ง `summarizerName` ส่งอย่างใดอย่างหนึ่ง) | ✔ | ผู้ที่ login (โหมดสร้าง) |
 | | | `summary` | Textarea "เนื้อหาสรุป" 5 บรรทัด | ✔ | |
+| | | `decisions` | Textarea "มติ/การตัดสินใจ" 5 บรรทัด | | |
 | | | `actionItems` | Textarea "สิ่งที่ต้องดำเนินการ" 4 บรรทัด | ✔ | |
 | 5 | **พื้นที่ (Area)** | `areaIds` | Checkbox (grid 3 คอลัมน์) | | |
 | | | `otherArea` | Text "พื้นที่ (อื่นๆ โปรดระบุ)" | | |

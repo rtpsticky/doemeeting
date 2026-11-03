@@ -88,6 +88,7 @@ export async function PUT(request, { params }) {
     const organizerId = parseInt(formData.get("organizerId"), 10);
     const coOrganizer = cleanText(formData.get("coOrganizer"));
     const summary = formData.get("summary");
+    const decisions = cleanText(formData.get("decisions"));
     const actionItems = cleanText(formData.get("actionItems"));
     const otherArea = cleanText(formData.get("otherArea"));
     const otherScope = cleanText(formData.get("otherScope"));
@@ -181,6 +182,7 @@ export async function PUT(request, { params }) {
           coOrganizer,
           otherObjective,
           summary,
+          decisions,
           actionItems,
           otherArea,
           otherScope,

@@ -154,6 +154,15 @@ export default async function MeetingDetailsPage({ params }) {
 
             <div className="md:col-span-2">
               <dt className="text-sm font-medium text-slate-500">
+                มติ/การตัดสินใจ
+              </dt>
+              <dd className="mt-1 text-base text-slate-900 whitespace-pre-wrap">
+                {meeting.decisions || "-"}
+              </dd>
+            </div>
+
+            <div className="md:col-span-2">
+              <dt className="text-sm font-medium text-slate-500">
                 สิ่งที่ต้องดำเนินการ
               </dt>
               <dd className="mt-1 text-base text-slate-900 whitespace-pre-wrap">

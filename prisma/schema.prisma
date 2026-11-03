@@ -101,6 +101,7 @@ model MeetingReport {
 
   // 9. สรุป & 10-12. ไฟล์แนบ
   summary                 String   @db.Text
+  decisions               String?  @db.Text // มติ/การตัดสินใจ (ไม่บังคับ)
   actionItems             String   @default("") @db.Text // สิ่งที่ต้องดำเนินการ (API บังคับกรอก)
   summaryFileUrl          String?  @db.VarChar(512) // URL แนบไฟล์สรุปประชุม
   imageUrl1               String?  @db.VarChar(512) // URL แนบรูปประชุม 1

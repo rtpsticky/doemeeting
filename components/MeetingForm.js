@@ -461,6 +461,13 @@ export default function MeetingForm({
           defaultValue={meeting?.summary}
         />
         <FormTextarea
+          id="decisions"
+          name="decisions"
+          label="มติ/การตัดสินใจ"
+          rows="5"
+          defaultValue={meeting?.decisions}
+        />
+        <FormTextarea
           id="actionItems"
           name="actionItems"
           label="สิ่งที่ต้องดำเนินการ"
